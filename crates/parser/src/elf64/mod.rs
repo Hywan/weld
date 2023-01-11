@@ -1,10 +1,4 @@
-use crate::{Input, Result};
-use nom::{
-    branch::alt,
-    bytes::complete::{tag, take},
-    error::ParseError,
-    sequence::tuple,
-};
+use crate::{generators::*, Input, Result};
 
 #[derive(Debug)]
 pub enum Endianness {
@@ -35,56 +29,59 @@ pub enum OsAbi {
     // Unknown OS ABI.
     None,
 
-    // System V.
+    // [System V](https://en.wikipedia.org/wiki/System_V).
     SystemV,
 
-    // HP-UX.
+    // [HP-UX](https://en.wikipedia.org/wiki/HP-UX).
     HpUx,
 
-    // NetBSD.
+    // [NetBSD](https://en.wikipedia.org/wiki/NetBSD).
     NetBsd,
 
-    // GNU.
+    // [GNU Linux](https://en.wikipedia.org/wiki/Linux).
     Gnu,
 
-    // GNU/Hurd.
+    // [GNU Hurd](https://en.wikipedia.org/wiki/GNU_Hurd).
     GnuHurd,
 
-    // Sun Solaris.
+    // [Sun Solaris](https://en.wikipedia.org/wiki/Solaris_(operating_system)).
     Solaris,
 
-    // IBM AIX.
+    // [IBM AIX (Monterey)](https://en.wikipedia.org/wiki/IBM_AIX).
     Aix,
 
-    // SGI Irix.
+    // [SGI IRIX](https://en.wikipedia.org/wiki/IRIX).
     Irix,
 
-    // FreeBSD.
+    // [FreeBSD](https://en.wikipedia.org/wiki/FreeBSD).
     FreeBsd,
 
-    // Compaq TRU64 UNIX.
+    // [Compaq TRU64 UNIX](https://en.wikipedia.org/wiki/Tru64).
     Tru64,
 
     // Novell Modesto.
     Modesto,
 
-    // OpenBSD.
+    // [OpenBSD](https://en.wikipedia.org/wiki/OpenBSD).
     OpenBsd,
 
-    // OpenVMS.
+    // [OpenVMS](https://en.wikipedia.org/wiki/OpenVMS).
     OpenVms,
 
-    // Hewlett-Packard Non-Stop Kernel.
+    // [Hewlett-Packard Non-Stop Kernel](https://en.wikipedia.org/wiki/NonStop_(server_computers)).
     Nsk,
 
-    // AROS.
+    // [AROS](https://en.wikipedia.org/wiki/AROS_Research_Operating_System).
     Aros,
 
     // FenixOS.
     FenixOs,
 
-    // Nuxi CloudABI.
+    // [Nuxi CloudABI](https://en.wikipedia.org/wiki/CloudABI).
     CloudAbi,
+
+    // [Stratus Technologies OpenVOS](https://en.wikipedia.org/wiki/Stratus_VOS).
+    OpenVos,
 
     // ARM EABI.
     ArmAeabi,
@@ -106,26 +103,27 @@ impl OsAbi {
         Ok((
             input,
             match os_abi[0] {
-                0 => Self::SystemV,
-                1 => Self::HpUx,
-                2 => Self::NetBsd,
-                3 => Self::Gnu,
-                4 => Self::GnuHurd,
-                6 => Self::Solaris,
-                7 => Self::Aix,
-                8 => Self::Irix,
-                9 => Self::FreeBsd,
-                10 => Self::Tru64,
-                11 => Self::Modesto,
-                12 => Self::OpenBsd,
-                13 => Self::OpenVms,
-                14 => Self::Nsk,
-                15 => Self::Aros,
-                16 => Self::FenixOs,
-                17 => Self::CloudAbi,
-                64 => Self::ArmAeabi,
-                97 => Self::Arm,
-                255 => Self::Standalone,
+                0x00 => Self::SystemV,
+                0x01 => Self::HpUx,
+                0x02 => Self::NetBsd,
+                0x03 => Self::Gnu,
+                0x04 => Self::GnuHurd,
+                0x06 => Self::Solaris,
+                0x07 => Self::Aix,
+                0x08 => Self::Irix,
+                0x09 => Self::FreeBsd,
+                0x0a => Self::Tru64,
+                0x0b => Self::Modesto,
+                0x0c => Self::OpenBsd,
+                0x0d => Self::OpenVms,
+                0x0e => Self::Nsk,
+                0x0f => Self::Aros,
+                0x10 => Self::FenixOs,
+                0x11 => Self::CloudAbi,
+                0x12 => Self::OpenVos,
+                0x40 => Self::ArmAeabi,
+                0x61 => Self::Arm,
+                0xff => Self::Standalone,
                 _ => Self::None,
             },
         ))
@@ -145,12 +143,13 @@ impl File {
     where
         E: ParseError<Input<'a>>,
     {
-        let (input, (_magic, _class, endianness, _version, os_abi)) = tuple((
+        let (input, (_magic, _class, endianness, _version, os_abi, _padding)) = tuple((
             tag(Self::MAGIC),
             tag(&[0x2] /* 64 bits */),
             Endianness::parse,
             tag(&[0x1]),
             OsAbi::parse,
+            skip(8usize),
         ))(input)?;
 
         let file = Self { endianness, os_abi };
@@ -169,7 +168,6 @@ mod tests {
 
     #[test]
     fn test_me() {
-        dbg!(&EXIT_FILE);
         let file = File::parse::<VerboseError<Input>>(EXIT_FILE);
         dbg!(&file);
 
