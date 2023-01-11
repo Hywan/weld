@@ -1,133 +1,78 @@
 use crate::{generators::*, Input, Result};
+use weld_parser_macros::EnumParse;
 
-#[derive(Debug)]
+#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum Endianness {
-    Little,
-    Big,
+    Little = 0x1,
+    Big = 0x2,
 }
 
-impl Endianness {
-    pub fn parse<'a, E>(input: Input<'a>) -> Result<Self, E>
-    where
-        E: ParseError<Input<'a>>,
-    {
-        let (input, endianness) = alt((tag(&[0x1]), tag(&[0x2])))(input)?;
-
-        Ok((
-            input,
-            match endianness[0] {
-                0x1 => Self::Little,
-                0x2 => Self::Big,
-                _ => unreachable!(),
-            },
-        ))
-    }
-}
-
-#[derive(Debug)]
+#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum OsAbi {
-    // Unknown OS ABI.
-    None,
-
     // [System V](https://en.wikipedia.org/wiki/System_V).
-    SystemV,
+    SystemV = 0x00,
 
     // [HP-UX](https://en.wikipedia.org/wiki/HP-UX).
-    HpUx,
+    HpUx = 0x01,
 
     // [NetBSD](https://en.wikipedia.org/wiki/NetBSD).
-    NetBsd,
+    NetBsd = 0x02,
 
     // [GNU Linux](https://en.wikipedia.org/wiki/Linux).
-    Gnu,
+    Gnu = 0x03,
 
     // [GNU Hurd](https://en.wikipedia.org/wiki/GNU_Hurd).
-    GnuHurd,
+    GnuHurd = 0x04,
 
     // [Sun Solaris](https://en.wikipedia.org/wiki/Solaris_(operating_system)).
-    Solaris,
+    Solaris = 0x06,
 
     // [IBM AIX (Monterey)](https://en.wikipedia.org/wiki/IBM_AIX).
-    Aix,
+    Aix = 0x07,
 
     // [SGI IRIX](https://en.wikipedia.org/wiki/IRIX).
-    Irix,
+    Irix = 0x08,
 
     // [FreeBSD](https://en.wikipedia.org/wiki/FreeBSD).
-    FreeBsd,
+    FreeBsd = 0x09,
 
     // [Compaq TRU64 UNIX](https://en.wikipedia.org/wiki/Tru64).
-    Tru64,
+    Tru64 = 0x0a,
 
     // Novell Modesto.
-    Modesto,
+    Modesto = 0x0b,
 
     // [OpenBSD](https://en.wikipedia.org/wiki/OpenBSD).
-    OpenBsd,
+    OpenBsd = 0x0c,
 
     // [OpenVMS](https://en.wikipedia.org/wiki/OpenVMS).
-    OpenVms,
+    OpenVms = 0x0d,
 
     // [Hewlett-Packard Non-Stop Kernel](https://en.wikipedia.org/wiki/NonStop_(server_computers)).
-    Nsk,
+    Nsk = 0x0e,
 
     // [AROS](https://en.wikipedia.org/wiki/AROS_Research_Operating_System).
-    Aros,
+    Aros = 0x0f,
 
     // FenixOS.
-    FenixOs,
+    FenixOs = 0x10,
 
     // [Nuxi CloudABI](https://en.wikipedia.org/wiki/CloudABI).
-    CloudAbi,
+    CloudAbi = 0x11,
 
     // [Stratus Technologies OpenVOS](https://en.wikipedia.org/wiki/Stratus_VOS).
-    OpenVos,
+    OpenVos = 0x12,
 
     // ARM EABI.
-    ArmAeabi,
+    ArmAeabi = 0x40,
 
     // ARM.
-    Arm,
+    Arm = 0x61,
 
     // Standalone (embedded) application.
-    Standalone,
-}
-
-impl OsAbi {
-    pub fn parse<'a, E>(input: Input<'a>) -> Result<Self, E>
-    where
-        E: ParseError<Input<'a>>,
-    {
-        let (input, os_abi) = take(1usize)(input)?;
-
-        Ok((
-            input,
-            match os_abi[0] {
-                0x00 => Self::SystemV,
-                0x01 => Self::HpUx,
-                0x02 => Self::NetBsd,
-                0x03 => Self::Gnu,
-                0x04 => Self::GnuHurd,
-                0x06 => Self::Solaris,
-                0x07 => Self::Aix,
-                0x08 => Self::Irix,
-                0x09 => Self::FreeBsd,
-                0x0a => Self::Tru64,
-                0x0b => Self::Modesto,
-                0x0c => Self::OpenBsd,
-                0x0d => Self::OpenVms,
-                0x0e => Self::Nsk,
-                0x0f => Self::Aros,
-                0x10 => Self::FenixOs,
-                0x11 => Self::CloudAbi,
-                0x12 => Self::OpenVos,
-                0x40 => Self::ArmAeabi,
-                0x61 => Self::Arm,
-                0xff => Self::Standalone,
-                _ => Self::None,
-            },
-        ))
-    }
+    Standalone = 0xff,
 }
 
 #[derive(Debug)]

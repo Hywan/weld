@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 nom = "7.1.2"
+weld-parser-macros = { path = "../parser-macros", version = "0.1" }
