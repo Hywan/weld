@@ -1,4 +1,6 @@
 use crate::{generators::*, Input, Result};
+use nom::number::complete::le_u64;
+use std::fmt;
 use weld_parser_macros::EnumParse;
 
 #[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,16 +64,12 @@ pub enum OsAbi {
 pub enum Type {
     /// Unknown.
     None = 0x00,
-
     /// Relocatable file.
     RelocatableFile = 0x01,
-
     /// Executable file.
     ExecutableFile = 0x02,
-
     /// Shared object.
     SharedObject = 0x03,
-
     /// Core file.
     CoreFile = 0x04,
 }
@@ -217,12 +215,47 @@ pub enum Machine {
     Bpf = 0xf7,
 }
 
+pub struct Address(pub u64);
+
+impl Address {
+    pub fn parse<'a, E>(input: Input<'a>) -> Result<Self, E>
+    where
+        E: ParseError<Input<'a>>,
+    {
+        let (input, address) = le_u64(input)?;
+
+        Ok((input, Address(address)))
+    }
+
+    pub fn maybe_parse<'a, E>(input: Input<'a>) -> Result<Option<Self>, E>
+    where
+        E: ParseError<Input<'a>>,
+    {
+        let (input, address) = Self::parse(input)?;
+
+        Ok((input, if address.0 == 0 { None } else { Some(address) }))
+    }
+}
+
+impl fmt::Debug for Address {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "0x{:08x}", self.0)
+    }
+}
+
+impl fmt::Display for Address {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, formatter)
+    }
+}
+
 #[derive(Debug)]
 pub struct File {
     pub endianness: Endianness,
     pub os_abi: OsAbi,
     pub r#type: Type,
     pub machine: Machine,
+    pub entry_point: Option<Address>,
 }
 
 impl File {
@@ -232,23 +265,39 @@ impl File {
     where
         E: ParseError<Input<'a>>,
     {
-        let (input, (_magic, _class, endianness, _version, os_abi, _padding, r#type, machine)) =
-            tuple((
-                tag(Self::MAGIC),
-                tag(&[0x2] /* 64 bits */),
-                Endianness::parse,
-                tag(&[0x1]),
-                OsAbi::parse,
-                skip(8usize),
-                Type::parse,
-                Machine::parse,
-            ))(input)?;
+        let (
+            input,
+            (
+                _magic,
+                _class,
+                endianness,
+                _version,
+                os_abi,
+                _padding,
+                r#type,
+                machine,
+                _version_bis,
+                entry_point,
+            ),
+        ) = tuple((
+            tag(Self::MAGIC),
+            tag(&[0x2] /* 64 bits */),
+            Endianness::parse,
+            tag(&[0x1]),
+            OsAbi::parse,
+            skip(8usize),
+            Type::parse,
+            Machine::parse,
+            skip(4usize),
+            Address::maybe_parse,
+        ))(input)?;
 
         let file = Self {
             endianness,
             os_abi,
             r#type,
             machine,
+            entry_point,
         };
 
         Ok((input, file))
@@ -261,13 +310,12 @@ mod tests {
 
     use super::*;
 
-    const EXIT_FILE: &'static [u8] = include_bytes!("../../tests/fixtures/exit.o");
+    const EXIT_FILE: &'static [u8] = include_bytes!("../../tests/fixtures/exit.elfx86_64.o");
 
     #[test]
     fn test_me() {
-        let file = File::parse::<VerboseError<Input>>(EXIT_FILE);
+        let (remaining, file) = File::parse::<VerboseError<Input>>(EXIT_FILE).unwrap();
+        dbg!(&remaining);
         dbg!(&file);
-
-        assert!(file.is_ok());
     }
 }
