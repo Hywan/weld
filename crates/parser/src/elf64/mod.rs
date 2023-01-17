@@ -1,5 +1,6 @@
 use crate::{generators::*, Input, Result};
-use nom::number::complete::le_u64;
+use enumflags2::{bitflags, BitFlags};
+use nom::number::complete::{le_u16, le_u32, le_u64};
 use std::fmt;
 use weld_parser_macros::EnumParse;
 
@@ -10,6 +11,16 @@ pub enum Endianness {
     Little = 0x01,
     // Big
     Big = 0x02,
+}
+
+#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Version {
+    // Invalid version.
+    None = 0x00,
+
+    // Current version.
+    Current = 0x01,
 }
 
 #[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,7 +72,7 @@ pub enum OsAbi {
 
 #[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
-pub enum Type {
+pub enum FileType {
     /// Unknown.
     None = 0x00,
     /// Relocatable file.
@@ -74,6 +85,7 @@ pub enum Type {
     CoreFile = 0x04,
 }
 
+/// Architecture.
 #[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
 pub enum Machine {
@@ -215,6 +227,7 @@ pub enum Machine {
     Bpf = 0xf7,
 }
 
+#[repr(transparent)]
 pub struct Address(pub u64);
 
 impl Address {
@@ -249,58 +262,281 @@ impl fmt::Display for Address {
     }
 }
 
-#[derive(Debug)]
-pub struct File {
-    pub endianness: Endianness,
-    pub os_abi: OsAbi,
-    pub r#type: Type,
-    pub machine: Machine,
-    pub entry_point: Option<Address>,
+impl Into<usize> for Address {
+    fn into(self) -> usize {
+        self.0 as usize
+    }
 }
 
-impl File {
+#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+pub enum ProgramType {
+    /// Program header table entry unused.
+    Null = 0x00,
+    /// Loadable segment.
+    Load = 0x01,
+    /// Dynamic linking information.
+    Dynamic = 0x02,
+    /// Interpreter information.
+    Interpreter = 0x03,
+    /// Auxiliary information.
+    Note = 0x04,
+    /// Reserved.
+    Shlib = 0x05,
+    /// Segment containing program header table itself.
+    ProgramHeader = 0x06,
+    /// Thread-Local Storage template.
+    ThreadLocalStraoge = 0x07,
+}
+
+#[bitflags]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+pub enum SegmentFlag {
+    Execute = 0x1,
+    Write = 0x2,
+    Read = 0x4,
+}
+
+pub type SegmentFlags = BitFlags<SegmentFlag>;
+
+impl SegmentFlag {
+    pub fn parse_bits<'a, E>(input: Input<'a>) -> Result<SegmentFlags, E>
+    where
+        E: ParseError<Input<'a>>,
+    {
+        let (input, flags) = le_u32(input)?;
+        let flags = SegmentFlags::from_bits(flags)
+            .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
+
+        Ok((input, flags))
+    }
+}
+
+#[derive(Debug)]
+pub struct ProgramHeader {
+    pub r#type: ProgramType,
+    pub segment_flags: SegmentFlags,
+    pub offset: Address,
+    pub vaddr: Address,
+    pub paddr: Address,
+    pub filesz: Address,
+    pub memsz: Address,
+    pub align: Address,
+}
+
+impl ProgramHeader {
+    pub fn parse<'a, E>(input: Input<'a>) -> Result<Self, E>
+    where
+        E: ParseError<Input<'a>>,
+    {
+        let (input, (r#type, offset, vaddr, paddr, filesz, memsz, align, segment_flags)) =
+            tuple((
+                ProgramType::parse,
+                Address::parse,
+                Address::parse,
+                Address::parse,
+                Address::parse,
+                Address::parse,
+                Address::parse,
+                SegmentFlag::parse_bits,
+            ))(input)?;
+
+        let program_header = Self {
+            r#type,
+            offset,
+            vaddr,
+            paddr,
+            filesz,
+            memsz,
+            align,
+            segment_flags,
+        };
+
+        Ok((input, program_header))
+    }
+}
+
+#[derive(Debug)]
+pub struct SectionHeader {
+    pub name: u32,
+    pub r#type: u32,
+    pub flags: u64,
+    pub addr: Address,
+    pub offset: Address,
+    pub size: u64,
+    pub link: u32,
+    pub info: u32,
+    pub addralign: u64,
+    pub entsize: u64,
+}
+
+impl SectionHeader {
+    pub fn parse<'a, E>(input: Input<'a>) -> Result<Self, E>
+    where
+        E: ParseError<Input<'a>>,
+    {
+        let (input, (name, r#type, flags, addr, offset, size, link, info, addralign, entsize)) =
+            tuple((
+                le_u32,
+                le_u32,
+                le_u64,
+                Address::parse,
+                Address::parse,
+                le_u64,
+                le_u32,
+                le_u32,
+                le_u64,
+                le_u64,
+            ))(input)?;
+
+        let section_header = Self {
+            name,
+            r#type,
+            flags,
+            addr,
+            offset,
+            size,
+            link,
+            info,
+            addralign,
+            entsize,
+        };
+
+        Ok((input, section_header))
+    }
+}
+
+#[derive(Debug)]
+pub struct FileHeader {
+    /// Endianess of the object file.
+    pub endianness: Endianness,
+
+    /// Object file version.
+    pub version: Version,
+
+    /// OS ABI.
+    pub os_abi: OsAbi,
+
+    /// Object file type.
+    pub r#type: FileType,
+
+    /// Machine architecture.
+    pub machine: Machine,
+
+    /// Processor-specific flags.
+    pub processor_flags: u32,
+
+    /// Entry point virtual address.
+    pub entry_point: Option<Address>,
+
+    /// Program headers.
+    pub program_headers: Vec<ProgramHeader>,
+
+    /// Section headers.
+    pub section_headers: Vec<SectionHeader>,
+}
+
+impl FileHeader {
     const MAGIC: &'static [u8; 4] = &[0x7f, b'E', b'L', b'F'];
+    const ELF64: &'static [u8; 1] = &[0x2];
 
     pub fn parse<'a, E>(input: Input<'a>) -> Result<Self, E>
     where
         E: ParseError<Input<'a>>,
     {
+        let file = input;
+
+        // `fh` stands for `file_header`.
+        // `ph` stands for `program_header`.
+        // `sh` stands for `section_header`.
+
         let (
             input,
             (
                 _magic,
                 _class,
                 endianness,
-                _version,
+                version,
                 os_abi,
                 _padding,
                 r#type,
                 machine,
                 _version_bis,
                 entry_point,
+                ph_offset,
+                sh_offset,
+                processor_flags,
+                _fh_size,
+                ph_entry_size,
+                ph_number,
+                sh_entry_size,
+                sh_number,
+                section_name_index,
             ),
         ) = tuple((
             tag(Self::MAGIC),
-            tag(&[0x2] /* 64 bits */),
+            tag(Self::ELF64),
             Endianness::parse,
-            tag(&[0x1]),
+            Version::parse,
             OsAbi::parse,
             skip(8usize),
-            Type::parse,
+            FileType::parse,
             Machine::parse,
             skip(4usize),
             Address::maybe_parse,
+            Address::parse,
+            Address::parse,
+            le_u32,
+            skip(2usize),
+            le_u16,
+            le_u16,
+            le_u16,
+            le_u16,
+            le_u16,
         ))(input)?;
 
-        let file = Self {
+        let mut program_headers = Vec::with_capacity(ph_number as usize);
+
+        if ph_entry_size > 0 {
+            for ph_slice in (&file[ph_offset.into()..])
+                .chunks(ph_entry_size as usize)
+                .take(ph_number as usize)
+            {
+                let (_, ph) = ProgramHeader::parse(ph_slice)?;
+                program_headers.push(ph);
+            }
+        }
+
+        let mut section_headers = Vec::with_capacity(sh_number as usize);
+
+        dbg!(&sh_entry_size);
+        dbg!(&sh_offset);
+        dbg!(&sh_number);
+
+        if sh_entry_size > 0 {
+            for sh_slice in (&file[sh_offset.into()..])
+                .chunks(sh_entry_size as usize)
+                .take(sh_number as usize)
+            {
+                let (_, sh) = SectionHeader::parse(sh_slice)?;
+                section_headers.push(sh);
+            }
+        }
+
+        let file_header = Self {
             endianness,
+            version,
             os_abi,
             r#type,
             machine,
+            processor_flags,
             entry_point,
+            program_headers,
+            section_headers,
         };
 
-        Ok((input, file))
+        Ok((input, file_header))
     }
 }
 
@@ -314,8 +550,8 @@ mod tests {
 
     #[test]
     fn test_me() {
-        let (remaining, file) = File::parse::<VerboseError<Input>>(EXIT_FILE).unwrap();
-        dbg!(&remaining);
+        let (remaining, file) = FileHeader::parse::<VerboseError<Input>>(EXIT_FILE).unwrap();
+        // dbg!(&remaining);
         dbg!(&file);
     }
 }

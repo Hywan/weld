@@ -34,6 +34,8 @@ fn derive_enum_parse_impl(
             .as_str()
         {
             "u8" => "le_u8",
+            "u16" => "le_u16",
+            "u32" => "le_u32",
             repr => panic!("`EnumParse` does not handle the `{repr}` representation yet"),
         },
         proc_macro2::Span::call_site(),
@@ -77,7 +79,7 @@ fn derive_enum_parse_impl(
                     input,
                     match discriminant {
                         #( #parser_logic, )*
-                        _ => return Err(::nom::Err::Error(E::from_error_kind(input, ::nom::error::ErrorKind::Digit))),
+                        _ => return Err(::nom::Err::Error(E::from_error_kind(input, ::nom::error::ErrorKind::Alt))),
                     }
                 ))
             }
