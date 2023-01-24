@@ -315,14 +315,25 @@ impl SegmentFlag {
 
 #[derive(Debug)]
 pub struct ProgramHeader {
+    /// Identifies the type of the segment.
     pub r#type: ProgramType,
+    /// Segment-dependent flags.
     pub segment_flags: SegmentFlags,
+    /// Offset of the segment in the file image.
     pub offset: Address,
-    pub vaddr: Address,
-    pub paddr: Address,
-    pub filesz: Address,
-    pub memsz: Address,
-    pub align: Address,
+    /// Virtual address of the segment in memory.
+    pub virtual_address: Address,
+    /// On systems where physical address is relevant, reserved for segment's
+    /// physical address.
+    pub physical_address: Option<Address>,
+    /// Size in bytes of the segment in the file image. May be 0.
+    pub segment_size_in_file_image: u64,
+    /// Size in bytes of the segment in memory. May be 0.
+    pub segment_size_in_memory: u64,
+    /// 0 and 1 specify no alignment. Otherwise should be a positive,
+    /// integral power of 2, with `virtual_address` equating `offset` modulus
+    /// `alignment`.
+    pub alignment: u64,
 }
 
 impl ProgramHeader {
@@ -330,26 +341,37 @@ impl ProgramHeader {
     where
         E: ParseError<Input<'a>>,
     {
-        let (input, (r#type, offset, vaddr, paddr, filesz, memsz, align, segment_flags)) =
-            tuple((
-                ProgramType::parse,
-                Address::parse,
-                Address::parse,
-                Address::parse,
-                Address::parse,
-                Address::parse,
-                Address::parse,
-                SegmentFlag::parse_bits,
-            ))(input)?;
+        let (
+            input,
+            (
+                r#type,
+                segment_flags,
+                offset,
+                virtual_address,
+                physical_address,
+                segment_size_in_file_image,
+                segment_size_in_memory,
+                alignment,
+            ),
+        ) = tuple((
+            ProgramType::parse,
+            SegmentFlag::parse_bits,
+            Address::parse,
+            Address::parse,
+            Address::maybe_parse,
+            le_u64,
+            le_u64,
+            le_u64,
+        ))(input)?;
 
         let program_header = Self {
             r#type,
             offset,
-            vaddr,
-            paddr,
-            filesz,
-            memsz,
-            align,
+            virtual_address,
+            physical_address,
+            segment_size_in_file_image,
+            segment_size_in_memory,
+            alignment,
             segment_flags,
         };
 
@@ -357,10 +379,53 @@ impl ProgramHeader {
     }
 }
 
+#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+pub enum SectionType {
+    /// Section header table entry unused.
+    Null = 0x00,
+    /// Program data.
+    ProgramData = 0x01,
+    /// Symbol table.
+    SymbolTable = 0x02,
+    /// String table.
+    StringTable = 0x03,
+    /// Relocation entries with addends.
+    RelocationWithAddends = 0x04,
+    /// Symbol hash table.
+    SymbolHashTable = 0x05,
+    /// Dynamic linking information.
+    DynamicLinkingInformation = 0x06,
+    /// Notes.
+    Note = 0x07,
+    /// Program space with no data (BSS, Block Started by Symbol).
+    NoBits = 0x08,
+    /// Relocation entries, no addends.
+    Relocation = 0x09,
+    /// Reserved.
+    Shlib = 0x0a,
+    /// Dynamic linker symbol table.
+    DynamicLinkerSysmbolTable = 0x0b,
+    /// Array of constructors.
+    ArrayOfConstructors = 0x0e,
+    /// Array of destructors.
+    ArrayOfDestructors = 0x0f,
+    /// Array of pre-constructors.
+    ArrayOfPreConstructors = 0x10,
+    /// Section group.
+    Group = 0x11,
+    /// Extended section indices.
+    ExtendedSectionIndices = 0x12,
+    /// Number of defined types.
+    NumberOfDefinedTypes = 0x13,
+}
+
 #[derive(Debug)]
 pub struct SectionHeader {
+    /// An offset to a string in the `.shstrtab` section that represents the
+    /// name of this section.
     pub name: u32,
-    pub r#type: u32,
+    pub r#type: SectionType,
     pub flags: u64,
     pub addr: Address,
     pub offset: Address,
@@ -379,7 +444,7 @@ impl SectionHeader {
         let (input, (name, r#type, flags, addr, offset, size, link, info, addralign, entsize)) =
             tuple((
                 le_u32,
-                le_u32,
+                SectionType::parse,
                 le_u64,
                 Address::parse,
                 Address::parse,
@@ -500,7 +565,7 @@ impl FileHeader {
 
         if ph_entry_size > 0 {
             for ph_slice in (&file[ph_offset.into()..])
-                .chunks(ph_entry_size as usize)
+                .chunks_exact(ph_entry_size as usize)
                 .take(ph_number as usize)
             {
                 let (_, ph) = ProgramHeader::parse(ph_slice)?;
@@ -510,13 +575,9 @@ impl FileHeader {
 
         let mut section_headers = Vec::with_capacity(sh_number as usize);
 
-        dbg!(&sh_entry_size);
-        dbg!(&sh_offset);
-        dbg!(&sh_number);
-
         if sh_entry_size > 0 {
             for sh_slice in (&file[sh_offset.into()..])
-                .chunks(sh_entry_size as usize)
+                .chunks_exact(sh_entry_size as usize)
                 .take(sh_number as usize)
             {
                 let (_, sh) = SectionHeader::parse(sh_slice)?;
