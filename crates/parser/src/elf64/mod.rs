@@ -422,7 +422,7 @@ pub enum SectionType {
 
 #[bitflags]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u32)]
+#[repr(u64)]
 pub enum SectionFlag {
     /// Writable.
     Writable = 0x01,
@@ -453,7 +453,7 @@ impl SectionFlag {
     where
         E: ParseError<Input<'a>>,
     {
-        let (input, flags) = le_u32(input)?;
+        let (input, flags) = le_u64(input)?;
         let flags = SectionFlags::from_bits(flags)
             .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
 
@@ -470,13 +470,24 @@ pub struct SectionHeader {
     pub r#type: SectionType,
     /// Flags.
     pub flags: SectionFlags,
-    pub addr: Address,
+    /// Virtual address of the section in memory, for sections that are loaded.
+    pub virtual_address: Address,
+    /// Offset of the section in the file image.
     pub offset: Address,
-    pub size: u64,
+    /// Size in bytes of the section in the file image. May be 0.
+    pub segment_size_in_file_image: u64,
+    /// Contains the section index of an associated section. This field is used
+    /// for several purposes, depending on the type of section.
     pub link: u32,
-    pub info: u32,
-    pub addralign: u64,
-    pub entsize: u64,
+    /// Contains extra information about the section. This field is used for
+    /// several purposes, depending on the type of section.
+    pub information: u32,
+    /// Contains the required alignment of the section. This field must be a
+    /// power of two.
+    pub alignment: u64,
+    /// Contains some size, in bytes, of each entry, for sections that contain
+    /// fixed-sized entries.
+    pub entity_size: Option<u64>,
 }
 
 impl SectionHeader {
@@ -484,31 +495,48 @@ impl SectionHeader {
     where
         E: ParseError<Input<'a>>,
     {
-        let (input, (name, r#type, flags, addr, offset, size, link, info, addralign, entsize)) =
-            tuple((
-                le_u32,
-                SectionType::parse,
-                SectionFlag::parse_bits,
-                Address::parse,
-                Address::parse,
-                le_u64,
-                le_u32,
-                le_u32,
-                le_u64,
-                le_u64,
-            ))(input)?;
+        let (
+            input,
+            (
+                name,
+                r#type,
+                flags,
+                virtual_address,
+                offset,
+                segment_size_in_file_image,
+                link,
+                information,
+                alignment,
+                entity_size,
+            ),
+        ) = tuple((
+            le_u32,
+            SectionType::parse,
+            SectionFlag::parse_bits,
+            Address::parse,
+            Address::parse,
+            le_u64,
+            le_u32,
+            le_u32,
+            le_u64,
+            le_u64,
+        ))(input)?;
 
         let section_header = Self {
             name,
             r#type,
             flags,
-            addr,
+            virtual_address,
             offset,
-            size,
+            segment_size_in_file_image,
             link,
-            info,
-            addralign,
-            entsize,
+            information,
+            alignment,
+            entity_size: if entity_size == 0 {
+                None
+            } else {
+                Some(entity_size)
+            },
         };
 
         Ok((input, section_header))
@@ -654,7 +682,7 @@ mod tests {
 
     #[test]
     fn test_me() {
-        let (remaining, file) = FileHeader::parse::<VerboseError<Input>>(EXIT_FILE).unwrap();
+        let (_remaining, file) = FileHeader::parse::<VerboseError<Input>>(EXIT_FILE).unwrap();
         // dbg!(&remaining);
         dbg!(&file);
     }
