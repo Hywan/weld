@@ -292,21 +292,21 @@ pub enum ProgramType {
 #[bitflags]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
-pub enum SegmentFlag {
+pub enum ProgramFlag {
     Execute = 0x1,
     Write = 0x2,
     Read = 0x4,
 }
 
-pub type SegmentFlags = BitFlags<SegmentFlag>;
+pub type ProgramFlags = BitFlags<ProgramFlag>;
 
-impl SegmentFlag {
-    pub fn parse_bits<'a, E>(input: Input<'a>) -> Result<SegmentFlags, E>
+impl ProgramFlag {
+    pub fn parse_bits<'a, E>(input: Input<'a>) -> Result<ProgramFlags, E>
     where
         E: ParseError<Input<'a>>,
     {
         let (input, flags) = le_u32(input)?;
-        let flags = SegmentFlags::from_bits(flags)
+        let flags = ProgramFlags::from_bits(flags)
             .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
 
         Ok((input, flags))
@@ -318,7 +318,7 @@ pub struct ProgramHeader {
     /// Identifies the type of the segment.
     pub r#type: ProgramType,
     /// Segment-dependent flags.
-    pub segment_flags: SegmentFlags,
+    pub segment_flags: ProgramFlags,
     /// Offset of the segment in the file image.
     pub offset: Address,
     /// Virtual address of the segment in memory.
@@ -355,7 +355,7 @@ impl ProgramHeader {
             ),
         ) = tuple((
             ProgramType::parse,
-            SegmentFlag::parse_bits,
+            ProgramFlag::parse_bits,
             Address::parse,
             Address::parse,
             Address::maybe_parse,
@@ -420,13 +420,56 @@ pub enum SectionType {
     NumberOfDefinedTypes = 0x13,
 }
 
+#[bitflags]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+pub enum SectionFlag {
+    /// Writable.
+    Writable = 0x01,
+    /// Occupies memory during execution.
+    Allocable = 0x02,
+    /// Executable.
+    Executale = 0x04,
+    /// Might be merged.
+    Merge = 0x10,
+    /// Contains null-terminated strings.
+    Strings = 0x20,
+    /// `sh_info` contains SHT index.
+    InfoLink = 0x40,
+    /// Preserve order after combining.
+    LinkOrder = 0x80,
+    /// Non-standard OS specific handling required.
+    OsNonConforming = 0x100,
+    /// Section is member of a group.
+    IsPartOfAGroup = 0x200,
+    /// Section hold thread-local data.
+    HasThreadLocalData = 0x400,
+}
+
+pub type SectionFlags = BitFlags<SectionFlag>;
+
+impl SectionFlag {
+    pub fn parse_bits<'a, E>(input: Input<'a>) -> Result<SectionFlags, E>
+    where
+        E: ParseError<Input<'a>>,
+    {
+        let (input, flags) = le_u32(input)?;
+        let flags = SectionFlags::from_bits(flags)
+            .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
+
+        Ok((input, flags))
+    }
+}
+
 #[derive(Debug)]
 pub struct SectionHeader {
     /// An offset to a string in the `.shstrtab` section that represents the
     /// name of this section.
     pub name: u32,
+    /// Type of the section header.
     pub r#type: SectionType,
-    pub flags: u64,
+    /// Flags.
+    pub flags: SectionFlags,
     pub addr: Address,
     pub offset: Address,
     pub size: u64,
@@ -445,7 +488,7 @@ impl SectionHeader {
             tuple((
                 le_u32,
                 SectionType::parse,
-                le_u64,
+                SectionFlag::parse_bits,
                 Address::parse,
                 Address::parse,
                 le_u64,
