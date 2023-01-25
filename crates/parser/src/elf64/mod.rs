@@ -1,7 +1,10 @@
 use crate::{generators::*, Input, Result};
 use enumflags2::{bitflags, BitFlags};
 use nom::number::complete::{le_u16, le_u32, le_u64};
-use std::fmt;
+use std::{
+    fmt,
+    ops::{Add, Range},
+};
 use weld_parser_macros::EnumParse;
 
 #[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
@@ -265,10 +268,22 @@ impl fmt::Display for Address {
 
 impl Into<usize> for Address {
     fn into(self) -> usize {
-        self.0 as usize
+        self.0.try_into().unwrap()
     }
 }
 
+impl Add for Address {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self(
+            self.0
+                .checked_add(other.0)
+                .ok_or_else(|| format!("`{self} + {other}` has overflowed"))
+                .unwrap(),
+        )
+    }
+}
 #[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum ProgramType {
@@ -479,7 +494,7 @@ pub struct SectionHeader<'a> {
     /// Offset of the section in the file image.
     pub offset: Address,
     /// Size in bytes of the section in the file image. May be 0.
-    pub segment_size_in_file_image: u64,
+    pub segment_size_in_file_image: Address,
     /// Contains the section index of an associated section. This field is used
     /// for several purposes, depending on the type of section.
     pub link: u32,
@@ -521,7 +536,7 @@ impl<'a> SectionHeader<'a> {
             SectionFlag::parse_bits,
             Address::parse,
             Address::parse,
-            le_u64,
+            Address::parse,
             le_u32,
             le_u32,
             le_u64,
@@ -543,10 +558,15 @@ impl<'a> SectionHeader<'a> {
             } else {
                 Some(entity_size)
             },
-            data: &file[offset.into()..][..segment_size_in_file_image.try_into().unwrap()],
+            data: &file[offset.into()..][..segment_size_in_file_image.into()],
         };
 
         Ok((input, section_header))
+    }
+
+    /// File range where the segment is stored.
+    pub fn file_range(&self) -> Range<Address> {
+        self.offset..self.offset + self.segment_size_in_file_image
     }
 }
 
