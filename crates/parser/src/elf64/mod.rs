@@ -228,6 +228,7 @@ pub enum Machine {
 }
 
 #[repr(transparent)]
+#[derive(Copy, Clone)]
 pub struct Address(pub u64);
 
 impl Address {
@@ -314,7 +315,7 @@ impl ProgramFlag {
 }
 
 #[derive(Debug)]
-pub struct ProgramHeader {
+pub struct ProgramHeader<'a> {
     /// Identifies the type of the segment.
     pub r#type: ProgramType,
     /// Segment-dependent flags.
@@ -334,10 +335,12 @@ pub struct ProgramHeader {
     /// integral power of 2, with `virtual_address` equating `offset` modulus
     /// `alignment`.
     pub alignment: u64,
+    /// Data.
+    pub data: &'a [u8],
 }
 
-impl ProgramHeader {
-    pub fn parse<'a, E>(input: Input<'a>) -> Result<Self, E>
+impl<'a> ProgramHeader<'a> {
+    pub fn parse<E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
     where
         E: ParseError<Input<'a>>,
     {
@@ -373,6 +376,7 @@ impl ProgramHeader {
             segment_size_in_memory,
             alignment,
             segment_flags,
+            data: &file[offset.into()..][..segment_size_in_file_image.try_into().unwrap()],
         };
 
         Ok((input, program_header))
@@ -462,7 +466,7 @@ impl SectionFlag {
 }
 
 #[derive(Debug)]
-pub struct SectionHeader {
+pub struct SectionHeader<'a> {
     /// An offset to a string in the `.shstrtab` section that represents the
     /// name of this section.
     pub name: u32,
@@ -488,10 +492,12 @@ pub struct SectionHeader {
     /// Contains some size, in bytes, of each entry, for sections that contain
     /// fixed-sized entries.
     pub entity_size: Option<u64>,
+    /// Data.
+    pub data: &'a [u8],
 }
 
-impl SectionHeader {
-    pub fn parse<'a, E>(input: Input<'a>) -> Result<Self, E>
+impl<'a> SectionHeader<'a> {
+    pub fn parse<E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
     where
         E: ParseError<Input<'a>>,
     {
@@ -537,6 +543,7 @@ impl SectionHeader {
             } else {
                 Some(entity_size)
             },
+            data: &file[offset.into()..][..segment_size_in_file_image.try_into().unwrap()],
         };
 
         Ok((input, section_header))
@@ -544,7 +551,7 @@ impl SectionHeader {
 }
 
 #[derive(Debug)]
-pub struct FileHeader {
+pub struct FileHeader<'a> {
     /// Endianess of the object file.
     pub endianness: Endianness,
 
@@ -567,17 +574,17 @@ pub struct FileHeader {
     pub entry_point: Option<Address>,
 
     /// Program headers.
-    pub program_headers: Vec<ProgramHeader>,
+    pub program_headers: Vec<ProgramHeader<'a>>,
 
     /// Section headers.
-    pub section_headers: Vec<SectionHeader>,
+    pub section_headers: Vec<SectionHeader<'a>>,
 }
 
-impl FileHeader {
+impl<'a> FileHeader<'a> {
     const MAGIC: &'static [u8; 4] = &[0x7f, b'E', b'L', b'F'];
     const ELF64: &'static [u8; 1] = &[0x2];
 
-    pub fn parse<'a, E>(input: Input<'a>) -> Result<Self, E>
+    pub fn parse<E>(input: Input<'a>) -> Result<Self, E>
     where
         E: ParseError<Input<'a>>,
     {
@@ -639,7 +646,7 @@ impl FileHeader {
                 .chunks_exact(ph_entry_size as usize)
                 .take(ph_number as usize)
             {
-                let (_, ph) = ProgramHeader::parse(ph_slice)?;
+                let (_, ph) = ProgramHeader::parse(file, ph_slice)?;
                 program_headers.push(ph);
             }
         }
@@ -651,7 +658,7 @@ impl FileHeader {
                 .chunks_exact(sh_entry_size as usize)
                 .take(sh_number as usize)
             {
-                let (_, sh) = SectionHeader::parse(sh_slice)?;
+                let (_, sh) = SectionHeader::parse(file, sh_slice)?;
                 section_headers.push(sh);
             }
         }
