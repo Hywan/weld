@@ -1,6 +1,5 @@
 use crate::{generators::*, Input, Result};
 use enumflags2::{bitflags, BitFlags};
-use nom::number::complete::{le_u16, le_u32, le_u64};
 use std::{
     fmt,
     ops::{Add, Range},
@@ -21,7 +20,6 @@ pub enum Endianness {
 pub enum Version {
     // Invalid version.
     None = 0x00,
-
     // Current version.
     Current = 0x01,
 }
@@ -235,20 +233,22 @@ pub enum Machine {
 pub struct Address(pub u64);
 
 impl Address {
-    pub fn parse<'a, E>(input: Input<'a>) -> Result<Self, E>
+    pub fn parse<'a, N, E>(input: Input<'a>) -> Result<Self, E>
     where
+        N: NumberParser<'a, E>,
         E: ParseError<Input<'a>>,
     {
-        let (input, address) = le_u64(input)?;
+        let (input, address) = N::u64(input)?;
 
         Ok((input, Address(address)))
     }
 
-    pub fn maybe_parse<'a, E>(input: Input<'a>) -> Result<Option<Self>, E>
+    pub fn maybe_parse<'a, N, E>(input: Input<'a>) -> Result<Option<Self>, E>
     where
+        N: NumberParser<'a, E>,
         E: ParseError<Input<'a>>,
     {
-        let (input, address) = Self::parse(input)?;
+        let (input, address) = Self::parse::<N, E>(input)?;
 
         Ok((input, if address.0 == 0 { None } else { Some(address) }))
     }
@@ -266,9 +266,9 @@ impl fmt::Display for Address {
     }
 }
 
-impl Into<usize> for Address {
-    fn into(self) -> usize {
-        self.0.try_into().unwrap()
+impl From<Address> for usize {
+    fn from(value: Address) -> Self {
+        value.0.try_into().unwrap()
     }
 }
 
@@ -317,11 +317,12 @@ pub enum ProgramFlag {
 pub type ProgramFlags = BitFlags<ProgramFlag>;
 
 impl ProgramFlag {
-    pub fn parse_bits<'a, E>(input: Input<'a>) -> Result<ProgramFlags, E>
+    pub fn parse_bits<'a, N, E>(input: Input<'a>) -> Result<ProgramFlags, E>
     where
+        N: NumberParser<'a, E>,
         E: ParseError<Input<'a>>,
     {
-        let (input, flags) = le_u32(input)?;
+        let (input, flags) = N::u32(input)?;
         let flags = ProgramFlags::from_bits(flags)
             .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
 
@@ -355,8 +356,9 @@ pub struct ProgramHeader<'a> {
 }
 
 impl<'a> ProgramHeader<'a> {
-    pub fn parse<E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
+    pub fn parse<N, E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
     where
+        N: NumberParser<'a, E>,
         E: ParseError<Input<'a>>,
     {
         let (
@@ -372,14 +374,14 @@ impl<'a> ProgramHeader<'a> {
                 alignment,
             ),
         ) = tuple((
-            ProgramType::parse,
-            ProgramFlag::parse_bits,
-            Address::parse,
-            Address::parse,
-            Address::maybe_parse,
-            le_u64,
-            le_u64,
-            le_u64,
+            ProgramType::parse::<N, _>,
+            ProgramFlag::parse_bits::<N, _>,
+            Address::parse::<N, _>,
+            Address::parse::<N, _>,
+            Address::maybe_parse::<N, _>,
+            N::u64,
+            N::u64,
+            N::u64,
         ))(input)?;
 
         let program_header = Self {
@@ -468,11 +470,12 @@ pub enum SectionFlag {
 pub type SectionFlags = BitFlags<SectionFlag>;
 
 impl SectionFlag {
-    pub fn parse_bits<'a, E>(input: Input<'a>) -> Result<SectionFlags, E>
+    pub fn parse_bits<'a, N, E>(input: Input<'a>) -> Result<SectionFlags, E>
     where
+        N: NumberParser<'a, E>,
         E: ParseError<Input<'a>>,
     {
-        let (input, flags) = le_u64(input)?;
+        let (input, flags) = N::u64(input)?;
         let flags = SectionFlags::from_bits(flags)
             .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
 
@@ -512,8 +515,9 @@ pub struct SectionHeader<'a> {
 }
 
 impl<'a> SectionHeader<'a> {
-    pub fn parse<E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
+    pub fn parse<N, E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
     where
+        N: NumberParser<'a, E>,
         E: ParseError<Input<'a>>,
     {
         let (
@@ -531,16 +535,16 @@ impl<'a> SectionHeader<'a> {
                 entity_size,
             ),
         ) = tuple((
-            le_u32,
-            SectionType::parse,
-            SectionFlag::parse_bits,
-            Address::parse,
-            Address::parse,
-            Address::parse,
-            le_u32,
-            le_u32,
-            le_u64,
-            le_u64,
+            N::u32,
+            SectionType::parse::<N, _>,
+            SectionFlag::parse_bits::<N, _>,
+            Address::parse::<N, _>,
+            Address::parse::<N, _>,
+            Address::parse::<N, _>,
+            N::u32,
+            N::u32,
+            N::u64,
+            N::u64,
         ))(input)?;
 
         let section_header = Self {
@@ -610,6 +614,29 @@ impl<'a> FileHeader<'a> {
     {
         let file = input;
 
+        let (input, (_magic, _class, endianness)) = tuple((
+            tag(Self::MAGIC),
+            tag(Self::ELF64),
+            Endianness::parse::<LittleEndian, _>,
+        ))(input)?;
+
+        match endianness {
+            Endianness::Big => Self::parse_with_endianness::<BigEndian, _>(file, input, endianness),
+            Endianness::Little => {
+                Self::parse_with_endianness::<LittleEndian, _>(file, input, endianness)
+            }
+        }
+    }
+
+    fn parse_with_endianness<N, E>(
+        file: Input<'a>,
+        input: Input<'a>,
+        endianness: Endianness,
+    ) -> Result<'a, Self, E>
+    where
+        N: NumberParser<'a, E>,
+        E: ParseError<Input<'a>>,
+    {
         // `fh` stands for `file_header`.
         // `ph` stands for `program_header`.
         // `sh` stands for `section_header`.
@@ -617,9 +644,6 @@ impl<'a> FileHeader<'a> {
         let (
             input,
             (
-                _magic,
-                _class,
-                endianness,
                 version,
                 os_abi,
                 _padding,
@@ -638,35 +662,32 @@ impl<'a> FileHeader<'a> {
                 section_name_index,
             ),
         ) = tuple((
-            tag(Self::MAGIC),
-            tag(Self::ELF64),
-            Endianness::parse,
-            Version::parse,
-            OsAbi::parse,
+            Version::parse::<N, _>,
+            OsAbi::parse::<N, _>,
             skip(8usize),
-            FileType::parse,
-            Machine::parse,
+            FileType::parse::<N, _>,
+            Machine::parse::<N, _>,
             skip(4usize),
-            Address::maybe_parse,
-            Address::parse,
-            Address::parse,
-            le_u32,
+            Address::maybe_parse::<N, _>,
+            Address::parse::<N, _>,
+            Address::parse::<N, _>,
+            N::u32,
             skip(2usize),
-            le_u16,
-            le_u16,
-            le_u16,
-            le_u16,
-            le_u16,
+            N::u16,
+            N::u16,
+            N::u16,
+            N::u16,
+            N::u16,
         ))(input)?;
 
         let mut program_headers = Vec::with_capacity(ph_number as usize);
 
         if ph_entry_size > 0 {
-            for ph_slice in (&file[ph_offset.into()..])
+            for ph_slice in file[ph_offset.into()..]
                 .chunks_exact(ph_entry_size as usize)
                 .take(ph_number as usize)
             {
-                let (_, ph) = ProgramHeader::parse(file, ph_slice)?;
+                let (_, ph) = ProgramHeader::parse::<N, _>(file, ph_slice)?;
                 program_headers.push(ph);
             }
         }
@@ -674,11 +695,11 @@ impl<'a> FileHeader<'a> {
         let mut section_headers = Vec::with_capacity(sh_number as usize);
 
         if sh_entry_size > 0 {
-            for sh_slice in (&file[sh_offset.into()..])
+            for sh_slice in file[sh_offset.into()..]
                 .chunks_exact(sh_entry_size as usize)
                 .take(sh_number as usize)
             {
-                let (_, sh) = SectionHeader::parse(file, sh_slice)?;
+                let (_, sh) = SectionHeader::parse::<N, _>(file, sh_slice)?;
                 section_headers.push(sh);
             }
         }

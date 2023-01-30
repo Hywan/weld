@@ -33,9 +33,9 @@ fn derive_enum_parse_impl(
             .to_string()
             .as_str()
         {
-            "u8" => "le_u8",
-            "u16" => "le_u16",
-            "u32" => "le_u32",
+            "u8" => "u8",
+            "u16" => "u16",
+            "u32" => "u32",
             repr => panic!("`EnumParse` does not handle the `{repr}` representation yet"),
         },
         proc_macro2::Span::call_site(),
@@ -69,11 +69,12 @@ fn derive_enum_parse_impl(
         impl #impl_generics #enum_name #ty_generics
         #where_clause
         {
-            pub fn parse<'a, E>(input: crate::Input<'a>) -> crate::Result<Self, E>
+            pub fn parse<'a, N, E>(input: crate::Input<'a>) -> crate::Result<Self, E>
             where
+                N: crate::NumberParser<'a, E>,
                 E: ::nom::error::ParseError<crate::Input<'a>>,
             {
-                let (input, discriminant) = ::nom::number::complete::#parser_combinator(input)?;
+                let (input, discriminant) = N::#parser_combinator(input)?;
 
                 Ok((
                     input,
