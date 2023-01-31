@@ -28,11 +28,7 @@ fn derive_enum_parse_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let parser_combinator = proc_macro2::Ident::new(
-        match repr
-            .expect("A `#repr(…)` attribute must be present")
-            .to_string()
-            .as_str()
-        {
+        match repr.expect("A `#repr(…)` attribute must be present").to_string().as_str() {
             "u8" => "u8",
             "u16" => "u16",
             "u32" => "u32",
@@ -47,13 +43,7 @@ fn derive_enum_parse_impl(
         .map(|variant| {
             let name = &variant.ident;
             let discriminant = match &variant.discriminant {
-                Some((
-                    _,
-                    syn::Expr::Lit(syn::ExprLit {
-                        lit: syn::Lit::Int(int),
-                        ..
-                    }),
-                )) => int,
+                Some((_, syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(int), .. }))) => int,
                 _ => panic!(
                     "All variants must have a discriminant, and it must reprenset an integer"
                 ),
@@ -95,15 +85,14 @@ fn fetch_repr(attrs: &[Attribute]) -> Option<Ident> {
         .find_map(|attr| {
             attr.parse_meta()
                 .map(|meta| match meta {
-                    syn::Meta::List(ref meta_list) if meta_list.path.is_ident("repr") => meta_list
-                        .nested
-                        .first()
-                        .map(|nested_meta| match nested_meta {
+                    syn::Meta::List(ref meta_list) if meta_list.path.is_ident("repr") => {
+                        meta_list.nested.first().map(|nested_meta| match nested_meta {
                             syn::NestedMeta::Meta(syn::Meta::Path(repr_value)) => {
                                 repr_value.get_ident().cloned()
                             }
                             _ => panic!("`repr` seems to have an invalid value"),
-                        }),
+                        })
+                    }
                     _ => None,
                 })
                 .ok()
