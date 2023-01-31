@@ -1,4 +1,5 @@
 use crate::{generators::*, Input, Result};
+use bstr::BStr;
 use enumflags2::{bitflags, BitFlags};
 use std::{
     fmt,
@@ -9,9 +10,9 @@ use weld_parser_macros::EnumParse;
 #[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Endianness {
-    // Little.
+    // Little endian byte order.
     Little = 0x01,
-    // Big
+    // Big endian byte order.
     Big = 0x02,
 }
 
@@ -485,9 +486,11 @@ impl SectionFlag {
 
 #[derive(Debug)]
 pub struct SectionHeader<'a> {
+    /// Name of the section, if any.
+    pub name: Option<&'a BStr>,
     /// An offset to a string in the `.shstrtab` section that represents the
     /// name of this section.
-    pub name: u32,
+    name_offset: u32,
     /// Type of the section header.
     pub r#type: SectionType,
     /// Flags.
@@ -523,7 +526,7 @@ impl<'a> SectionHeader<'a> {
         let (
             input,
             (
-                name,
+                name_offset,
                 r#type,
                 flags,
                 virtual_address,
@@ -548,7 +551,8 @@ impl<'a> SectionHeader<'a> {
         ))(input)?;
 
         let section_header = Self {
-            name,
+            name: None,
+            name_offset,
             r#type,
             flags,
             virtual_address,
@@ -566,11 +570,6 @@ impl<'a> SectionHeader<'a> {
         };
 
         Ok((input, section_header))
-    }
-
-    /// File range where the segment is stored.
-    pub fn file_range(&self) -> Range<Address> {
-        self.offset..self.offset + self.segment_size_in_file_image
     }
 }
 
@@ -659,7 +658,7 @@ impl<'a> FileHeader<'a> {
                 ph_number,
                 sh_entry_size,
                 sh_number,
-                section_name_index,
+                sh_index_for_section_names,
             ),
         ) = tuple((
             Version::parse::<N, _>,
@@ -682,6 +681,7 @@ impl<'a> FileHeader<'a> {
 
         let mut program_headers = Vec::with_capacity(ph_number as usize);
 
+        // Parse program headers.
         if ph_entry_size > 0 {
             for ph_slice in file[ph_offset.into()..]
                 .chunks_exact(ph_entry_size as usize)
@@ -694,6 +694,7 @@ impl<'a> FileHeader<'a> {
 
         let mut section_headers = Vec::with_capacity(sh_number as usize);
 
+        // Parse section headers.
         if sh_entry_size > 0 {
             for sh_slice in file[sh_offset.into()..]
                 .chunks_exact(sh_entry_size as usize)
@@ -701,6 +702,23 @@ impl<'a> FileHeader<'a> {
             {
                 let (_, sh) = SectionHeader::parse::<N, _>(file, sh_slice)?;
                 section_headers.push(sh);
+            }
+        }
+
+        let sh_index_for_section_names: usize = sh_index_for_section_names.into();
+
+        // Parse section names.
+        if sh_index_for_section_names < section_headers.len()
+            && section_headers[sh_index_for_section_names].r#type == SectionType::StringTable
+        {
+            let section_names = section_headers[sh_index_for_section_names].data;
+
+            for section_header in &mut section_headers {
+                let name = &section_names[section_header.name_offset.try_into().unwrap()..];
+
+                if let Some(name_end) = name.iter().position(|c| *c == 0x00) {
+                    section_header.name = Some(BStr::new(&name[..name_end]));
+                }
             }
         }
 
