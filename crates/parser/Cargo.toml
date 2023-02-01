@@ -8,3 +8,9 @@ bstr = { version = "1.1.0", default-features = false, features = ["alloc", "std"
 enumflags2 = "0.7.5"
 nom = "7.1.2"
 weld-parser-macros = { path = "../parser-macros", version = "0.1" }
+
+[features]
+default = ["elf64"]
+
+# Enable the `elf64` parser.
+elf64 = []

@@ -1,4 +1,6 @@
 mod combinators;
+
+#[cfg(feature = "elf64")]
 pub mod elf64;
 
 pub use combinators::NumberParser;
