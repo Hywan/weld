@@ -360,7 +360,7 @@ impl<'a> FileHeader<'a> {
         if sh_index_for_section_names < section_headers.len()
             && section_headers[sh_index_for_section_names].r#type == SectionType::StringTable
         {
-            let section_names = section_headers[sh_index_for_section_names].data;
+            let section_names = section_headers[sh_index_for_section_names].data.inner;
 
             for section_header in &mut section_headers {
                 let name = &section_names[section_header.name_offset.try_into().unwrap()..];

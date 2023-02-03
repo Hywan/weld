@@ -2,7 +2,7 @@ use bstr::BStr;
 use enumflags2::{bitflags, BitFlags};
 use weld_parser_macros::EnumParse;
 
-use super::Address;
+use super::{Address, Data};
 use crate::{combinators::*, Input, Result};
 
 /// Section type.
@@ -122,7 +122,7 @@ pub struct SectionHeader<'a> {
     /// fixed-sized entries.
     pub entity_size: Option<u64>,
     /// Data.
-    pub data: &'a [u8],
+    pub data: Data<'a>,
 }
 
 impl<'a> SectionHeader<'a> {
@@ -170,7 +170,7 @@ impl<'a> SectionHeader<'a> {
             information,
             alignment,
             entity_size: if entity_size == 0 { None } else { Some(entity_size) },
-            data: &file[offset.into()..][..segment_size_in_file_image.into()],
+            data: Data::new(&file[offset.into()..][..segment_size_in_file_image.into()]),
         };
 
         Ok((input, section_header))

@@ -2,10 +2,12 @@ use std::{fmt, ops::Add};
 
 use crate::{combinators::*, Input, Result};
 
+mod data;
 mod file;
 mod program;
 mod section;
 
+pub use data::*;
 pub use file::*;
 pub use program::*;
 pub use section::*;

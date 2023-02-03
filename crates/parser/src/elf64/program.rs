@@ -1,7 +1,7 @@
 use enumflags2::{bitflags, BitFlags};
 use weld_parser_macros::EnumParse;
 
-use super::Address;
+use super::{Address, Data};
 use crate::{combinators::*, Input, Result};
 
 /// Type of program.
@@ -76,7 +76,7 @@ pub struct ProgramHeader<'a> {
     /// `alignment`.
     pub alignment: u64,
     /// Data.
-    pub data: &'a [u8],
+    pub data: Data<'a>,
 }
 
 impl<'a> ProgramHeader<'a> {
@@ -117,7 +117,9 @@ impl<'a> ProgramHeader<'a> {
             segment_size_in_memory,
             alignment,
             segment_flags,
-            data: &file[offset.into()..][..segment_size_in_file_image.try_into().unwrap()],
+            data: Data::new(
+                &file[offset.into()..][..segment_size_in_file_image.try_into().unwrap()],
+            ),
         };
 
         Ok((input, program_header))
