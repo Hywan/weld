@@ -76,7 +76,7 @@ mod tests {
 
     use super::*;
 
-    const EXIT_FILE: &'static [u8] = include_bytes!("../../tests/fixtures/exit.elfx86_64.o");
+    const EXIT_FILE: &'static [u8] = include_bytes!("../../tests/fixtures/exit_elf_amd64");
 
     #[test]
     fn test_me() {
