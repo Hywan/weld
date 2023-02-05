@@ -1,7 +1,7 @@
 use bstr::BStr;
 use weld_parser_macros::EnumParse;
 
-use super::{Address, Program, Section, SectionType};
+use super::{Address, Program, Section, SectionIndex, SectionType};
 use crate::{combinators::*, Input, Result};
 
 /// Object file.
@@ -99,7 +99,7 @@ impl<'a> File<'a> {
             N::u16,
             N::u16,
             N::u16,
-            N::u16,
+            SectionIndex::parse::<N, _>,
         ))(input)?;
 
         let mut program_headers = Vec::with_capacity(ph_number as usize);
@@ -123,25 +123,24 @@ impl<'a> File<'a> {
                 .chunks_exact(sh_entry_size as usize)
                 .take(sh_number as usize)
             {
-                let (_, sh) = SectionHeader::parse::<N, _>(file, sh_slice)?;
+                let (_, sh) = Section::parse::<N, _>(file, sh_slice)?;
                 section_headers.push(sh);
             }
         }
 
-        let sh_index_for_section_names: usize = sh_index_for_section_names.into();
-
         // Parse section names.
-        if sh_index_for_section_names > 0
-            && sh_index_for_section_names < section_headers.len()
-            && section_headers[sh_index_for_section_names].r#type == SectionType::StringTable
-        {
-            let section_names = section_headers[sh_index_for_section_names].data.inner;
+        if let SectionIndex::Ok(sh_index_for_section_names) = sh_index_for_section_names {
+            if sh_index_for_section_names < section_headers.len()
+                && section_headers[sh_index_for_section_names].r#type == SectionType::StringTable
+            {
+                let section_names = section_headers[sh_index_for_section_names].data.inner;
 
-            for section_header in &mut section_headers {
-                let name = &section_names[section_header.name_offset.try_into().unwrap()..];
+                for section_header in &mut section_headers {
+                    let name = &section_names[section_header.name_offset.try_into().unwrap()..];
 
-                if let Some(name_end) = name.iter().position(|c| *c == 0x00) {
-                    section_header.name = Some(BStr::new(&name[..name_end]));
+                    if let Some(name_end) = name.iter().position(|c| *c == 0x00) {
+                        section_header.name = Some(BStr::new(&name[..name_end]));
+                    }
                 }
             }
         }

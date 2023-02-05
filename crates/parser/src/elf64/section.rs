@@ -176,3 +176,47 @@ impl SectionFlag {
         Ok((input, flags))
     }
 }
+
+pub enum SectionIndex {
+    /// A valid section index.
+    Ok(usize),
+    /// An undefined or meaningless section reference.
+    Undefined,
+    /// Processor-specific use.
+    LowProcessorSpecific,
+    /// Processor-specific use.
+    HighProcessorSpecific,
+    /// Environment-specific use.
+    LowEnvironmentSpecific,
+    /// Environment-specific use.
+    HighEnvironmentSpecific,
+    /// The corresponding reference is an absolute value.
+    Absolute,
+    /// A symbol that has been declared as a common block (Fortran COMMON or C
+    /// tentative declaration).
+    Common,
+}
+
+impl SectionIndex {
+    pub fn parse<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
+    where
+        N: NumberParser<'a, E>,
+        E: ParseError<Input<'a>>,
+    {
+        let (input, index) = N::u16(input)?;
+
+        Ok((
+            input,
+            match index {
+                0x0000 => Self::Undefined,
+                0xff00 => Self::LowProcessorSpecific,
+                0xff1f => Self::HighProcessorSpecific,
+                0xff20 => Self::LowEnvironmentSpecific,
+                0xff3f => Self::HighEnvironmentSpecific,
+                0xfff1 => Self::Absolute,
+                0xfff2 => Self::Common,
+                index => Self::Ok(index.into()),
+            },
+        ))
+    }
+}
