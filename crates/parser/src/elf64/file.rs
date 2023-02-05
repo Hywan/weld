@@ -4,6 +4,163 @@ use weld_parser_macros::EnumParse;
 use super::{Address, ProgramHeader, SectionHeader, SectionType};
 use crate::{combinators::*, Input, Result};
 
+/// File header.
+#[derive(Debug)]
+pub struct FileHeader<'a> {
+    /// Endianess of the object file.
+    pub endianness: Endianness,
+    /// Object file version.
+    pub version: Version,
+    /// OS ABI.
+    pub os_abi: OsAbi,
+    /// Object file type.
+    pub r#type: FileType,
+    /// Machine architecture.
+    pub machine: Machine,
+    /// Processor-specific flags.
+    pub processor_flags: u32,
+    /// Entry point virtual address.
+    pub entry_point: Option<Address>,
+    /// Program headers.
+    pub program_headers: Vec<ProgramHeader<'a>>,
+    /// Section headers.
+    pub section_headers: Vec<SectionHeader<'a>>,
+}
+
+impl<'a> FileHeader<'a> {
+    const MAGIC: &'static [u8; 4] = &[0x7f, b'E', b'L', b'F'];
+    const ELF64: &'static [u8; 1] = &[0x2];
+
+    pub fn parse<E>(input: Input<'a>) -> Result<Self, E>
+    where
+        E: ParseError<Input<'a>>,
+    {
+        let file = input;
+
+        let (input, (_magic, _class, endianness)) =
+            tuple((tag(Self::MAGIC), tag(Self::ELF64), Endianness::parse::<LittleEndian, _>))(
+                input,
+            )?;
+
+        match endianness {
+            Endianness::Big => Self::parse_with_endianness::<BigEndian, _>(file, input, endianness),
+            Endianness::Little => {
+                Self::parse_with_endianness::<LittleEndian, _>(file, input, endianness)
+            }
+        }
+    }
+
+    fn parse_with_endianness<N, E>(
+        file: Input<'a>,
+        input: Input<'a>,
+        endianness: Endianness,
+    ) -> Result<'a, Self, E>
+    where
+        N: NumberParser<'a, E>,
+        E: ParseError<Input<'a>>,
+    {
+        // `fh` stands for `file_header`.
+        // `ph` stands for `program_header`.
+        // `sh` stands for `section_header`.
+
+        let (
+            input,
+            (
+                version,
+                os_abi,
+                _padding,
+                r#type,
+                machine,
+                _version_bis,
+                entry_point,
+                ph_offset,
+                sh_offset,
+                processor_flags,
+                _fh_size,
+                ph_entry_size,
+                ph_number,
+                sh_entry_size,
+                sh_number,
+                sh_index_for_section_names,
+            ),
+        ) = tuple((
+            Version::parse::<N, _>,
+            OsAbi::parse::<N, _>,
+            skip(8usize),
+            FileType::parse::<N, _>,
+            Machine::parse::<N, _>,
+            skip(4usize),
+            Address::maybe_parse::<N, _>,
+            Address::parse::<N, _>,
+            Address::parse::<N, _>,
+            N::u32,
+            skip(2usize),
+            N::u16,
+            N::u16,
+            N::u16,
+            N::u16,
+            N::u16,
+        ))(input)?;
+
+        let mut program_headers = Vec::with_capacity(ph_number as usize);
+
+        // Parse program headers.
+        if ph_entry_size > 0 {
+            for ph_slice in file[ph_offset.into()..]
+                .chunks_exact(ph_entry_size as usize)
+                .take(ph_number as usize)
+            {
+                let (_, ph) = ProgramHeader::parse::<N, _>(file, ph_slice)?;
+                program_headers.push(ph);
+            }
+        }
+
+        let mut section_headers = Vec::with_capacity(sh_number as usize);
+
+        // Parse section headers.
+        if sh_entry_size > 0 {
+            for sh_slice in file[sh_offset.into()..]
+                .chunks_exact(sh_entry_size as usize)
+                .take(sh_number as usize)
+            {
+                let (_, sh) = SectionHeader::parse::<N, _>(file, sh_slice)?;
+                section_headers.push(sh);
+            }
+        }
+
+        let sh_index_for_section_names: usize = sh_index_for_section_names.into();
+
+        // Parse section names.
+        if sh_index_for_section_names < section_headers.len()
+            && section_headers[sh_index_for_section_names].r#type == SectionType::StringTable
+        {
+            let section_names = section_headers[sh_index_for_section_names].data.inner;
+
+            for section_header in &mut section_headers {
+                let name = &section_names[section_header.name_offset.try_into().unwrap()..];
+
+                if let Some(name_end) = name.iter().position(|c| *c == 0x00) {
+                    section_header.name = Some(BStr::new(&name[..name_end]));
+                }
+            }
+        }
+
+        let file_header = Self {
+            endianness,
+            version,
+            os_abi,
+            r#type,
+            machine,
+            processor_flags,
+            entry_point,
+            program_headers,
+            section_headers,
+        };
+
+        Ok((input, file_header))
+    }
+}
+
 /// Byte order of the file.
 #[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -228,161 +385,4 @@ pub enum Machine {
     RiscV = 0xf3,
     /// [Berkeley Packet Filter](https://en.wikipedia.org/wiki/Berkeley_Packet_Filter).
     Bpf = 0xf7,
-}
-
-/// File header.
-#[derive(Debug)]
-pub struct FileHeader<'a> {
-    /// Endianess of the object file.
-    pub endianness: Endianness,
-    /// Object file version.
-    pub version: Version,
-    /// OS ABI.
-    pub os_abi: OsAbi,
-    /// Object file type.
-    pub r#type: FileType,
-    /// Machine architecture.
-    pub machine: Machine,
-    /// Processor-specific flags.
-    pub processor_flags: u32,
-    /// Entry point virtual address.
-    pub entry_point: Option<Address>,
-    /// Program headers.
-    pub program_headers: Vec<ProgramHeader<'a>>,
-    /// Section headers.
-    pub section_headers: Vec<SectionHeader<'a>>,
-}
-
-impl<'a> FileHeader<'a> {
-    const MAGIC: &'static [u8; 4] = &[0x7f, b'E', b'L', b'F'];
-    const ELF64: &'static [u8; 1] = &[0x2];
-
-    pub fn parse<E>(input: Input<'a>) -> Result<Self, E>
-    where
-        E: ParseError<Input<'a>>,
-    {
-        let file = input;
-
-        let (input, (_magic, _class, endianness)) =
-            tuple((tag(Self::MAGIC), tag(Self::ELF64), Endianness::parse::<LittleEndian, _>))(
-                input,
-            )?;
-
-        match endianness {
-            Endianness::Big => Self::parse_with_endianness::<BigEndian, _>(file, input, endianness),
-            Endianness::Little => {
-                Self::parse_with_endianness::<LittleEndian, _>(file, input, endianness)
-            }
-        }
-    }
-
-    fn parse_with_endianness<N, E>(
-        file: Input<'a>,
-        input: Input<'a>,
-        endianness: Endianness,
-    ) -> Result<'a, Self, E>
-    where
-        N: NumberParser<'a, E>,
-        E: ParseError<Input<'a>>,
-    {
-        // `fh` stands for `file_header`.
-        // `ph` stands for `program_header`.
-        // `sh` stands for `section_header`.
-
-        let (
-            input,
-            (
-                version,
-                os_abi,
-                _padding,
-                r#type,
-                machine,
-                _version_bis,
-                entry_point,
-                ph_offset,
-                sh_offset,
-                processor_flags,
-                _fh_size,
-                ph_entry_size,
-                ph_number,
-                sh_entry_size,
-                sh_number,
-                sh_index_for_section_names,
-            ),
-        ) = tuple((
-            Version::parse::<N, _>,
-            OsAbi::parse::<N, _>,
-            skip(8usize),
-            FileType::parse::<N, _>,
-            Machine::parse::<N, _>,
-            skip(4usize),
-            Address::maybe_parse::<N, _>,
-            Address::parse::<N, _>,
-            Address::parse::<N, _>,
-            N::u32,
-            skip(2usize),
-            N::u16,
-            N::u16,
-            N::u16,
-            N::u16,
-            N::u16,
-        ))(input)?;
-
-        let mut program_headers = Vec::with_capacity(ph_number as usize);
-
-        // Parse program headers.
-        if ph_entry_size > 0 {
-            for ph_slice in file[ph_offset.into()..]
-                .chunks_exact(ph_entry_size as usize)
-                .take(ph_number as usize)
-            {
-                let (_, ph) = ProgramHeader::parse::<N, _>(file, ph_slice)?;
-                program_headers.push(ph);
-            }
-        }
-
-        let mut section_headers = Vec::with_capacity(sh_number as usize);
-
-        // Parse section headers.
-        if sh_entry_size > 0 {
-            for sh_slice in file[sh_offset.into()..]
-                .chunks_exact(sh_entry_size as usize)
-                .take(sh_number as usize)
-            {
-                let (_, sh) = SectionHeader::parse::<N, _>(file, sh_slice)?;
-                section_headers.push(sh);
-            }
-        }
-
-        let sh_index_for_section_names: usize = sh_index_for_section_names.into();
-
-        // Parse section names.
-        if sh_index_for_section_names < section_headers.len()
-            && section_headers[sh_index_for_section_names].r#type == SectionType::StringTable
-        {
-            let section_names = section_headers[sh_index_for_section_names].data.inner;
-
-            for section_header in &mut section_headers {
-                let name = &section_names[section_header.name_offset.try_into().unwrap()..];
-
-                if let Some(name_end) = name.iter().position(|c| *c == 0x00) {
-                    section_header.name = Some(BStr::new(&name[..name_end]));
-                }
-            }
-        }
-
-        let file_header = Self {
-            endianness,
-            version,
-            os_abi,
-            r#type,
-            machine,
-            processor_flags,
-            entry_point,
-            program_headers,
-            section_headers,
-        };
-
-        Ok((input, file_header))
-    }
 }

@@ -4,55 +4,6 @@ use weld_parser_macros::EnumParse;
 use super::{Address, Data};
 use crate::{combinators::*, Input, Result};
 
-/// Type of program.
-#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u32)]
-pub enum ProgramType {
-    /// Program header table entry unused.
-    Null = 0x00,
-    /// Loadable segment.
-    Load = 0x01,
-    /// Dynamic linking information.
-    Dynamic = 0x02,
-    /// Interpreter information.
-    Interpreter = 0x03,
-    /// Auxiliary information.
-    Note = 0x04,
-    /// Reserved.
-    Shlib = 0x05,
-    /// Segment containing program header table itself.
-    ProgramHeader = 0x06,
-    /// Thread-Local Storage template.
-    ThreadLocalStraoge = 0x07,
-}
-
-/// Program flag.
-#[bitflags]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u32)]
-pub enum ProgramFlag {
-    Execute = 0x1,
-    Write = 0x2,
-    Read = 0x4,
-}
-
-/// Program flags.
-pub type ProgramFlags = BitFlags<ProgramFlag>;
-
-impl ProgramFlag {
-    pub fn parse_bits<'a, N, E>(input: Input<'a>) -> Result<ProgramFlags, E>
-    where
-        N: NumberParser<'a, E>,
-        E: ParseError<Input<'a>>,
-    {
-        let (input, flags) = N::u32(input)?;
-        let flags = ProgramFlags::from_bits(flags)
-            .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
-
-        Ok((input, flags))
-    }
-}
-
 /// Program header.
 #[derive(Debug)]
 pub struct ProgramHeader<'a> {
@@ -123,5 +74,54 @@ impl<'a> ProgramHeader<'a> {
         };
 
         Ok((input, program_header))
+    }
+}
+
+/// Type of program.
+#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+pub enum ProgramType {
+    /// Program header table entry unused.
+    Null = 0x00,
+    /// Loadable segment.
+    Load = 0x01,
+    /// Dynamic linking information.
+    Dynamic = 0x02,
+    /// Interpreter information.
+    Interpreter = 0x03,
+    /// Auxiliary information.
+    Note = 0x04,
+    /// Reserved.
+    Shlib = 0x05,
+    /// Segment containing program header table itself.
+    ProgramHeader = 0x06,
+    /// Thread-Local Storage template.
+    ThreadLocalStraoge = 0x07,
+}
+
+/// Program flag.
+#[bitflags]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+pub enum ProgramFlag {
+    Execute = 0x1,
+    Write = 0x2,
+    Read = 0x4,
+}
+
+/// Program flags.
+pub type ProgramFlags = BitFlags<ProgramFlag>;
+
+impl ProgramFlag {
+    pub fn parse_bits<'a, N, E>(input: Input<'a>) -> Result<ProgramFlags, E>
+    where
+        N: NumberParser<'a, E>,
+        E: ParseError<Input<'a>>,
+    {
+        let (input, flags) = N::u32(input)?;
+        let flags = ProgramFlags::from_bits(flags)
+            .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
+
+        Ok((input, flags))
     }
 }

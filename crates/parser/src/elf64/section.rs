@@ -5,92 +5,6 @@ use weld_parser_macros::EnumParse;
 use super::{Address, Data};
 use crate::{combinators::*, Input, Result};
 
-/// Section type.
-#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u32)]
-pub enum SectionType {
-    /// Section header table entry unused.
-    Null = 0x00,
-    /// Program data.
-    ProgramData = 0x01,
-    /// Symbol table.
-    SymbolTable = 0x02,
-    /// String table.
-    StringTable = 0x03,
-    /// Relocation entries with addends.
-    RelocationWithAddends = 0x04,
-    /// Symbol hash table.
-    SymbolHashTable = 0x05,
-    /// Dynamic linking information.
-    DynamicLinkingInformation = 0x06,
-    /// Notes.
-    Note = 0x07,
-    /// Program space with no data (BSS, Block Started by Symbol).
-    NoBits = 0x08,
-    /// Relocation entries, no addends.
-    Relocation = 0x09,
-    /// Reserved.
-    Shlib = 0x0a,
-    /// Dynamic linker symbol table.
-    DynamicLinkerSysmbolTable = 0x0b,
-    /// Array of constructors.
-    ArrayOfConstructors = 0x0e,
-    /// Array of destructors.
-    ArrayOfDestructors = 0x0f,
-    /// Array of pre-constructors.
-    ArrayOfPreConstructors = 0x10,
-    /// Section group.
-    Group = 0x11,
-    /// Extended section indices.
-    ExtendedSectionIndices = 0x12,
-    /// Number of defined types.
-    NumberOfDefinedTypes = 0x13,
-}
-
-/// Section flag.
-#[bitflags]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u64)]
-pub enum SectionFlag {
-    /// Writable.
-    Writable = 0x01,
-    /// Occupies memory during execution.
-    Allocable = 0x02,
-    /// Executable.
-    Executale = 0x04,
-    /// Might be merged.
-    Merge = 0x10,
-    /// Contains null-terminated strings.
-    Strings = 0x20,
-    /// `sh_info` contains SHT index.
-    InfoLink = 0x40,
-    /// Preserve order after combining.
-    LinkOrder = 0x80,
-    /// Non-standard OS specific handling required.
-    OsNonConforming = 0x100,
-    /// Section is member of a group.
-    IsPartOfAGroup = 0x200,
-    /// Section hold thread-local data.
-    HasThreadLocalData = 0x400,
-}
-
-/// Section flags.
-pub type SectionFlags = BitFlags<SectionFlag>;
-
-impl SectionFlag {
-    pub fn parse_bits<'a, N, E>(input: Input<'a>) -> Result<SectionFlags, E>
-    where
-        N: NumberParser<'a, E>,
-        E: ParseError<Input<'a>>,
-    {
-        let (input, flags) = N::u64(input)?;
-        let flags = SectionFlags::from_bits(flags)
-            .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
-
-        Ok((input, flags))
-    }
-}
-
 /// Section header.
 #[derive(Debug)]
 pub struct SectionHeader<'a> {
@@ -174,5 +88,91 @@ impl<'a> SectionHeader<'a> {
         };
 
         Ok((input, section_header))
+    }
+}
+
+/// Section type.
+#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+pub enum SectionType {
+    /// Section header table entry unused.
+    Null = 0x00,
+    /// Program data.
+    ProgramData = 0x01,
+    /// Symbol table.
+    SymbolTable = 0x02,
+    /// String table.
+    StringTable = 0x03,
+    /// Relocation entries with addends.
+    RelocationWithAddends = 0x04,
+    /// Symbol hash table.
+    SymbolHashTable = 0x05,
+    /// Dynamic linking information.
+    DynamicLinkingInformation = 0x06,
+    /// Notes.
+    Note = 0x07,
+    /// Program space with no data (BSS, Block Started by Symbol).
+    NoBits = 0x08,
+    /// Relocation entries, no addends.
+    Relocation = 0x09,
+    /// Reserved.
+    Shlib = 0x0a,
+    /// Dynamic linker symbol table.
+    DynamicLinkerSysmbolTable = 0x0b,
+    /// Array of constructors.
+    ArrayOfConstructors = 0x0e,
+    /// Array of destructors.
+    ArrayOfDestructors = 0x0f,
+    /// Array of pre-constructors.
+    ArrayOfPreConstructors = 0x10,
+    /// Section group.
+    Group = 0x11,
+    /// Extended section indices.
+    ExtendedSectionIndices = 0x12,
+    /// Number of defined types.
+    NumberOfDefinedTypes = 0x13,
+}
+
+/// Section flag.
+#[bitflags]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u64)]
+pub enum SectionFlag {
+    /// Writable.
+    Writable = 0x01,
+    /// Occupies memory during execution.
+    Allocable = 0x02,
+    /// Executable.
+    Executale = 0x04,
+    /// Might be merged.
+    Merge = 0x10,
+    /// Contains null-terminated strings.
+    Strings = 0x20,
+    /// `sh_info` contains SHT index.
+    InfoLink = 0x40,
+    /// Preserve order after combining.
+    LinkOrder = 0x80,
+    /// Non-standard OS specific handling required.
+    OsNonConforming = 0x100,
+    /// Section is member of a group.
+    IsPartOfAGroup = 0x200,
+    /// Section hold thread-local data.
+    HasThreadLocalData = 0x400,
+}
+
+/// Section flags.
+pub type SectionFlags = BitFlags<SectionFlag>;
+
+impl SectionFlag {
+    pub fn parse_bits<'a, N, E>(input: Input<'a>) -> Result<SectionFlags, E>
+    where
+        N: NumberParser<'a, E>,
+        E: ParseError<Input<'a>>,
+    {
+        let (input, flags) = N::u64(input)?;
+        let flags = SectionFlags::from_bits(flags)
+            .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
+
+        Ok((input, flags))
     }
 }
