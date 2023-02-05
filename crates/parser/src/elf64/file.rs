@@ -131,7 +131,8 @@ impl<'a> FileHeader<'a> {
         let sh_index_for_section_names: usize = sh_index_for_section_names.into();
 
         // Parse section names.
-        if sh_index_for_section_names < section_headers.len()
+        if sh_index_for_section_names > 0
+            && sh_index_for_section_names < section_headers.len()
             && section_headers[sh_index_for_section_names].r#type == SectionType::StringTable
         {
             let section_names = section_headers[sh_index_for_section_names].data.inner;
