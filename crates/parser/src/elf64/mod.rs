@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_me() {
-        let (_remaining, file) = FileHeader::parse::<VerboseError<Input>>(EXIT_FILE).unwrap();
+        let (_remaining, file) = File::parse::<VerboseError<Input>>(EXIT_FILE).unwrap();
         // dbg!(&remaining);
         dbg!(&file);
     }

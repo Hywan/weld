@@ -1,12 +1,12 @@
 use bstr::BStr;
 use weld_parser_macros::EnumParse;
 
-use super::{Address, ProgramHeader, SectionHeader, SectionType};
+use super::{Address, Program, Section, SectionType};
 use crate::{combinators::*, Input, Result};
 
-/// File header.
+/// Object file.
 #[derive(Debug)]
-pub struct FileHeader<'a> {
+pub struct File<'a> {
     /// Endianess of the object file.
     pub endianness: Endianness,
     /// Object file version.
@@ -22,12 +22,12 @@ pub struct FileHeader<'a> {
     /// Entry point virtual address.
     pub entry_point: Option<Address>,
     /// Program headers.
-    pub program_headers: Vec<ProgramHeader<'a>>,
+    pub program_headers: Vec<Program<'a>>,
     /// Section headers.
-    pub section_headers: Vec<SectionHeader<'a>>,
+    pub section_headers: Vec<Section<'a>>,
 }
 
-impl<'a> FileHeader<'a> {
+impl<'a> File<'a> {
     const MAGIC: &'static [u8; 4] = &[0x7f, b'E', b'L', b'F'];
     const ELF64: &'static [u8; 1] = &[0x2];
 
@@ -110,7 +110,7 @@ impl<'a> FileHeader<'a> {
                 .chunks_exact(ph_entry_size as usize)
                 .take(ph_number as usize)
             {
-                let (_, ph) = ProgramHeader::parse::<N, _>(file, ph_slice)?;
+                let (_, ph) = Program::parse::<N, _>(file, ph_slice)?;
                 program_headers.push(ph);
             }
         }

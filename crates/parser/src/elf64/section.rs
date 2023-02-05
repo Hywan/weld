@@ -7,7 +7,7 @@ use crate::{combinators::*, Input, Result};
 
 /// Section header.
 #[derive(Debug)]
-pub struct SectionHeader<'a> {
+pub struct Section<'a> {
     /// Name of the section, if any.
     pub name: Option<&'a BStr>,
     /// An offset to a string in the `.shstrtab` section that represents the
@@ -39,7 +39,7 @@ pub struct SectionHeader<'a> {
     pub data: Data<'a>,
 }
 
-impl<'a> SectionHeader<'a> {
+impl<'a> Section<'a> {
     pub fn parse<N, E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
     where
         N: NumberParser<'a, E>,

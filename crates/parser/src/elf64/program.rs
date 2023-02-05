@@ -4,9 +4,9 @@ use weld_parser_macros::EnumParse;
 use super::{Address, Data};
 use crate::{combinators::*, Input, Result};
 
-/// Program header.
+/// Program.
 #[derive(Debug)]
-pub struct ProgramHeader<'a> {
+pub struct Program<'a> {
     /// Identifies the type of the segment.
     pub r#type: ProgramType,
     /// Segment-dependent flags.
@@ -30,7 +30,7 @@ pub struct ProgramHeader<'a> {
     pub data: Data<'a>,
 }
 
-impl<'a> ProgramHeader<'a> {
+impl<'a> Program<'a> {
     pub fn parse<N, E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
     where
         N: NumberParser<'a, E>,
