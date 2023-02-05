@@ -95,30 +95,33 @@ impl<'a> Section<'a> {
 #[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum SectionType {
-    /// Section header table entry unused.
+    /// Mark an unused section header.
     Null = 0x00,
-    /// Program data.
+    /// The section contains information defined by the program.
     ProgramData = 0x01,
-    /// Symbol table.
+    /// The section contains a linker symbol table.
     SymbolTable = 0x02,
-    /// String table.
+    /// The section contains a string table.
     StringTable = 0x03,
-    /// Relocation entries with addends.
+    /// The seciton contains “Rela” type relocation entries, with addends (hence
+    /// the “a” in “Rela”, i.e. “RELocations with Addends”).
     RelocationWithAddends = 0x04,
-    /// Symbol hash table.
+    /// The section contains a symbol hash table.
     SymbolHashTable = 0x05,
-    /// Dynamic linking information.
+    /// The section contains dynamic linking tables.
     DynamicLinkingInformation = 0x06,
-    /// Notes.
+    /// The section contains note information.
     Note = 0x07,
-    /// Program space with no data (BSS, Block Started by Symbol).
+    /// The section contains uninitialized space; does not occupy any space in
+    /// the file. It represents program space with no data (BSS, Block
+    /// Started by Symbol).
     NoBits = 0x08,
-    /// Relocation entries, no addends.
+    /// The section contains “Rel” type relocation entries, without addends.
     Relocation = 0x09,
     /// Reserved.
     Shlib = 0x0a,
-    /// Dynamic linker symbol table.
-    DynamicLinkerSysmbolTable = 0x0b,
+    /// The section contains a dynamic loader symbol table.
+    DynamicLinkerSymbolTable = 0x0b,
     /// Array of constructors.
     ArrayOfConstructors = 0x0e,
     /// Array of destructors.
@@ -131,6 +134,14 @@ pub enum SectionType {
     ExtendedSectionIndices = 0x12,
     /// Number of defined types.
     NumberOfDefinedTypes = 0x13,
+    /// Low environment-specific use.
+    LowEnvironmentSpecific = 0x6000_0000,
+    /// High environment-specific use.
+    HighEnvironmentSpecific = 0x6fff_ffff,
+    /// Low processor-specific use.
+    LowProcessorSpecific = 0x7000_0000,
+    /// High processor-specific use.
+    HighProcessorSpecific = 0x7fff_ffff,
 }
 
 /// Section flag.
