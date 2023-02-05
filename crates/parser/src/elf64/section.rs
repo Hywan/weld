@@ -12,7 +12,7 @@ pub struct Section<'a> {
     pub name: Option<&'a BStr>,
     /// An offset to a string in the `.shstrtab` section that represents the
     /// name of this section.
-    pub(super) name_offset: u32,
+    pub(super) name_offset: Address,
     /// Type of the section header.
     pub r#type: SectionType,
     /// Flags.
@@ -74,7 +74,7 @@ impl<'a> Section<'a> {
 
         let section_header = Self {
             name: None,
-            name_offset,
+            name_offset: name_offset.into(),
             r#type,
             flags,
             virtual_address,

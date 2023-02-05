@@ -57,6 +57,12 @@ impl From<Address> for usize {
     }
 }
 
+impl From<u32> for Address {
+    fn from(value: u32) -> Self {
+        Self(value.into())
+    }
+}
+
 impl Add for Address {
     type Output = Self;
 

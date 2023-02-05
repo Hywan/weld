@@ -136,7 +136,7 @@ impl<'a> File<'a> {
                 let section_names = section_headers[sh_index_for_section_names].data.inner;
 
                 for section_header in &mut section_headers {
-                    let name = &section_names[section_header.name_offset.try_into().unwrap()..];
+                    let name = &section_names[section_header.name_offset.into()..];
 
                     if let Some(name_end) = name.iter().position(|c| *c == 0x00) {
                         section_header.name = Some(BStr::new(&name[..name_end]));
