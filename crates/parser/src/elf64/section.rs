@@ -83,7 +83,10 @@ impl<'a> Section<'a> {
             information,
             alignment,
             entity_size: if entity_size == 0 { None } else { Some(entity_size) },
-            data: Data::new(&file[offset.into()..][..segment_size_in_file_image.into()]),
+            data: Data::new(
+                &file[offset.into()..][..segment_size_in_file_image.into()],
+                r#type.into(),
+            ),
         };
 
         Ok((input, section_header))

@@ -1,7 +1,7 @@
 use enumflags2::{bitflags, BitFlags};
 use weld_parser_macros::EnumParse;
 
-use super::{Address, Alignment, Data};
+use super::{Address, Alignment, Data, DataType};
 use crate::{combinators::*, Input, Result};
 
 /// Program.
@@ -70,6 +70,7 @@ impl<'a> Program<'a> {
             segment_flags,
             data: Data::new(
                 &file[offset.into()..][..segment_size_in_file_image.try_into().unwrap()],
+                DataType::Unspecified,
             ),
         };
 
