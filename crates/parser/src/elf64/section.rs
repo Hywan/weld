@@ -149,15 +149,15 @@ pub enum SectionType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u64)]
 pub enum SectionFlag {
-    /// Writable.
+    /// The section contains writable data.
     Writable = 0x01,
-    /// Occupies memory during execution.
+    /// The section is allocated in memory image of program.
     Allocable = 0x02,
-    /// Executable.
+    /// The section contains executable instructions.
     Executale = 0x04,
-    /// Might be merged.
+    /// The sectionn might be merged.
     Merge = 0x10,
-    /// Contains null-terminated strings.
+    /// The section contains null-terminated strings.
     Strings = 0x20,
     /// `sh_info` contains SHT index.
     InfoLink = 0x40,
