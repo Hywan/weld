@@ -169,6 +169,12 @@ pub enum SectionFlag {
     IsPartOfAGroup = 0x200,
     /// Section hold thread-local data.
     HasThreadLocalData = 0x400,
+    // Disabled because those are not powers of two, then it's incompatible with `#[bitflags]`.
+    //
+    // /// Environment-specific use.
+    // EnvironmentSpecific = 0x0f00_0000,
+    // /// Processor-specific use.
+    // ProcessorSpecific = 0xf000_0000,
 }
 
 /// Section flags.
