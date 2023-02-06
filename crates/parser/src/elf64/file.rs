@@ -99,7 +99,7 @@ impl<'a> File<'a> {
             N::u16,
             N::u16,
             N::u16,
-            SectionIndex::parse::<N, _>,
+            SectionIndex::parse_u16::<N, _>,
         ))(input)?;
 
         let mut program_headers = Vec::with_capacity(ph_number as usize);

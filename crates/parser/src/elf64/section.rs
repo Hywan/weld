@@ -25,7 +25,7 @@ pub struct Section<'a> {
     pub segment_size_in_file_image: Address,
     /// Contains the section index of an associated section. This field is used
     /// for several purposes, depending on the type of section.
-    pub link: u32,
+    pub link: SectionIndex,
     /// Contains extra information about the section. This field is used for
     /// several purposes, depending on the type of section.
     pub information: u32,
@@ -66,7 +66,7 @@ impl<'a> Section<'a> {
             Address::parse::<N, _>,
             Address::parse::<N, _>,
             Address::parse::<N, _>,
-            N::u32,
+            SectionIndex::parse_u32::<N, _>,
             N::u32,
             N::u64,
             N::u64,
@@ -109,7 +109,7 @@ pub enum SectionType {
     /// The section contains a symbol hash table.
     SymbolHashTable = 0x05,
     /// The section contains dynamic linking tables.
-    DynamicLinkingInformation = 0x06,
+    DynamicLinkingTable = 0x06,
     /// The section contains note information.
     Note = 0x07,
     /// The section contains uninitialized space; does not occupy any space in
@@ -121,7 +121,7 @@ pub enum SectionType {
     /// Reserved.
     Shlib = 0x0a,
     /// The section contains a dynamic loader symbol table.
-    DynamicLinkerSymbolTable = 0x0b,
+    DynamicLoaderSymbolTable = 0x0b,
     /// Array of constructors.
     ArrayOfConstructors = 0x0e,
     /// Array of destructors.
@@ -194,6 +194,7 @@ impl SectionFlag {
     }
 }
 
+#[derive(Debug)]
 pub enum SectionIndex {
     /// A valid section index.
     Ok(usize),
@@ -215,13 +216,30 @@ pub enum SectionIndex {
 }
 
 impl SectionIndex {
-    pub fn parse<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
+    pub fn parse_u16<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
         N: NumberParser<'a, E>,
         E: ParseError<Input<'a>>,
     {
         let (input, index) = N::u16(input)?;
 
+        Self::_parse(input, index.into())
+    }
+
+    pub fn parse_u32<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
+    where
+        N: NumberParser<'a, E>,
+        E: ParseError<Input<'a>>,
+    {
+        let (input, index) = N::u32(input)?;
+
+        Self::_parse(input, index)
+    }
+
+    pub fn _parse<'a, E>(input: Input<'a>, index: u32) -> Result<'a, Self, E>
+    where
+        E: ParseError<Input<'a>>,
+    {
         Ok((
             input,
             match index {
@@ -232,7 +250,11 @@ impl SectionIndex {
                 0xff3f => Self::HighEnvironmentSpecific,
                 0xfff1 => Self::Absolute,
                 0xfff2 => Self::Common,
-                index => Self::Ok(index.into()),
+                index => Self::Ok(
+                    index
+                        .try_into()
+                        .expect("Failed to cast the section index from `u32` to `usize`"),
+                ),
             },
         ))
     }
