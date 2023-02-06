@@ -1,4 +1,6 @@
-use std::{fmt, ops::Add};
+use std::{fmt, num::NonZeroU64, ops::Add};
+
+use nom::Err::Error;
 
 use crate::{combinators::*, Input, Result};
 
@@ -73,6 +75,36 @@ impl Add for Address {
                 .ok_or_else(|| format!("`{self} + {other}` has overflowed"))
                 .unwrap(),
         )
+    }
+}
+
+/// An alignment value.
+///
+/// It's guaranteed to be a non-zero power of two, encoded in a `u64`.
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct Alignment(Option<NonZeroU64>);
+
+impl Alignment {
+    pub fn parse<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
+    where
+        N: NumberParser<'a, E>,
+        E: ParseError<Input<'a>>,
+    {
+        let (next_input, alignment) = N::u64(input)?;
+
+        let alignment = if alignment != 0 {
+            if !alignment.is_power_of_two() {
+                return Err(Error(E::from_error_kind(input, ErrorKind::Digit)));
+            }
+
+            // SAFETY: We just checked that there's no `0`.
+            Some(unsafe { NonZeroU64::new_unchecked(alignment) })
+        } else {
+            None
+        };
+
+        Ok((next_input, Self(alignment)))
     }
 }
 

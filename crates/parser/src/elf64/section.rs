@@ -2,7 +2,7 @@ use bstr::BStr;
 use enumflags2::{bitflags, BitFlags};
 use weld_parser_macros::EnumParse;
 
-use super::{Address, Data};
+use super::{Address, Alignment, Data};
 use crate::{combinators::*, Input, Result};
 
 /// Section header.
@@ -29,9 +29,8 @@ pub struct Section<'a> {
     /// Contains extra information about the section. This field is used for
     /// several purposes, depending on the type of section.
     pub information: u32,
-    /// Contains the required alignment of the section. This field must be a
-    /// power of two.
-    pub alignment: u64,
+    /// Contains the required alignment of the section.
+    pub alignment: Alignment,
     /// Contains some size, in bytes, of each entry, for sections that contain
     /// fixed-sized entries.
     pub entity_size: Option<u64>,
@@ -68,7 +67,7 @@ impl<'a> Section<'a> {
             Address::parse::<N, _>,
             SectionIndex::parse_u32::<N, _>,
             N::u32,
-            N::u64,
+            Alignment::parse::<N, _>,
             N::u64,
         ))(input)?;
 

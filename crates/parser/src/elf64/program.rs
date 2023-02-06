@@ -1,7 +1,7 @@
 use enumflags2::{bitflags, BitFlags};
 use weld_parser_macros::EnumParse;
 
-use super::{Address, Data};
+use super::{Address, Alignment, Data};
 use crate::{combinators::*, Input, Result};
 
 /// Program.
@@ -25,7 +25,7 @@ pub struct Program<'a> {
     /// 0 and 1 specify no alignment. Otherwise should be a positive,
     /// integral power of 2, with `virtual_address` equating `offset` modulus
     /// `alignment`.
-    pub alignment: u64,
+    pub alignment: Alignment,
     /// Data.
     pub data: Data<'a>,
 }
@@ -56,7 +56,7 @@ impl<'a> Program<'a> {
             Address::maybe_parse::<N, _>,
             N::u64,
             N::u64,
-            N::u64,
+            Alignment::parse::<N, _>,
         ))(input)?;
 
         let program_header = Self {
