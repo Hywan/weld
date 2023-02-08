@@ -2,7 +2,8 @@ use std::fmt;
 
 use bstr::BStr;
 
-use super::SectionType;
+use super::{SectionType, Symbol, SymbolIterator};
+use crate::{combinators::*, Endianness, Input};
 
 /// `Data` is a wrapper around `&[u8]`.
 ///
@@ -14,9 +15,14 @@ pub struct Data<'a> {
     endianness: Endianness,
 }
 
+/// The type of `Data`.
 #[derive(Debug, PartialEq, Eq)]
 pub enum DataType {
+    /// `Data` represents a string table.
     StringTable,
+    /// `Data` represents a symbol table.
+    SymbolTable,
+    /// `Data` has unspecified data.
     Unspecified,
 }
 
@@ -24,6 +30,7 @@ impl From<SectionType> for DataType {
     fn from(value: SectionType) -> Self {
         match value {
             SectionType::StringTable => Self::StringTable,
+            SectionType::SymbolTable => Self::SymbolTable,
             _ => Self::Unspecified,
         }
     }
@@ -53,6 +60,19 @@ impl<'a> Data<'a> {
             None
         }
     }
+
+    /// Get an iterator over symbols, if and only if the data type is
+    /// [`DataType::SymbolTable`].
+    pub fn iter_symbols<E>(&self) -> Option<impl Iterator<Item = Result<Symbol<'a>, Err<E>>>>
+    where
+        E: ParseError<Input<'a>>,
+    {
+        if self.r#type != DataType::SymbolTable {
+            return None;
+        }
+
+        Some(SymbolIterator::new(self.inner, self.endianness))
+    }
 }
 
 impl<'a> fmt::Debug for Data<'a> {
@@ -81,6 +101,9 @@ impl<'a> fmt::Debug for Data<'a> {
                 self.r#type,
                 self.inner.split(|c| *c == 0x00).map(BStr::new).collect::<Vec<_>>()
             )),
+
+            DataType::SymbolTable => formatter
+                .write_fmt(format_args!("{:?} Data(..), interpreted: {:#?}", self.r#type, "")),
         }
     }
 }

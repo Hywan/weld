@@ -8,11 +8,13 @@ mod data;
 mod file;
 mod program;
 mod section;
+mod symbol;
 
 pub use data::*;
 pub use file::*;
 pub use program::*;
 pub use section::*;
+pub use symbol::*;
 
 /// An address within the file.
 #[repr(transparent)]
@@ -121,5 +123,16 @@ mod tests {
         let (_remaining, file) = File::parse::<VerboseError<Input>>(EXIT_FILE).unwrap();
         // dbg!(&remaining);
         dbg!(&file);
+
+        let symbol_section = file
+            .sections
+            .iter()
+            .find(|section| section.r#type == SectionType::SymbolTable)
+            .unwrap();
+
+        for symbol in symbol_section.data.iter_symbols::<VerboseError<Input>>().unwrap() {
+            let symbol = symbol.unwrap();
+            dbg!(&symbol);
+        }
     }
 }
