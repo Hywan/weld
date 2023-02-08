@@ -22,9 +22,9 @@ pub struct File<'a> {
     /// Entry point virtual address.
     pub entry_point: Option<Address>,
     /// Program headers.
-    pub program_headers: Vec<Program<'a>>,
+    pub programs: Vec<Program<'a>>,
     /// Section headers.
-    pub section_headers: Vec<Section<'a>>,
+    pub sections: Vec<Section<'a>>,
 }
 
 impl<'a> File<'a> {
@@ -102,7 +102,7 @@ impl<'a> File<'a> {
             SectionIndex::parse_u16::<N, _>,
         ))(input)?;
 
-        let mut program_headers = Vec::with_capacity(ph_number as usize);
+        let mut programs = Vec::with_capacity(ph_number as usize);
 
         // Parse program headers.
         if ph_entry_size > 0 {
@@ -111,11 +111,11 @@ impl<'a> File<'a> {
                 .take(ph_number as usize)
             {
                 let (_, ph) = Program::parse::<N, _>(file, ph_slice)?;
-                program_headers.push(ph);
+                programs.push(ph);
             }
         }
 
-        let mut section_headers = Vec::with_capacity(sh_number as usize);
+        let mut sections = Vec::with_capacity(sh_number as usize);
 
         // Parse section headers.
         if sh_entry_size > 0 {
@@ -124,18 +124,18 @@ impl<'a> File<'a> {
                 .take(sh_number as usize)
             {
                 let (_, sh) = Section::parse::<N, _>(file, sh_slice)?;
-                section_headers.push(sh);
+                sections.push(sh);
             }
         }
 
         // Parse section names.
         if let SectionIndex::Ok(sh_index_for_section_names) = sh_index_for_section_names {
-            if sh_index_for_section_names < section_headers.len()
-                && section_headers[sh_index_for_section_names].r#type == SectionType::StringTable
+            if sh_index_for_section_names < sections.len()
+                && sections[sh_index_for_section_names].r#type == SectionType::StringTable
             {
-                let section_names = section_headers[sh_index_for_section_names].data.inner;
+                let section_names = sections[sh_index_for_section_names].data.inner;
 
-                for section_header in &mut section_headers {
+                for section_header in &mut sections {
                     let name = &section_names[section_header.name_offset.into()..];
 
                     if let Some(name_end) = name.iter().position(|c| *c == 0x00) {
@@ -153,8 +153,8 @@ impl<'a> File<'a> {
             machine,
             processor_flags,
             entry_point,
-            program_headers,
-            section_headers,
+            programs,
+            sections,
         };
 
         Ok((input, file_header))
