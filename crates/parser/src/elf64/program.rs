@@ -2,7 +2,7 @@ use enumflags2::{bitflags, BitFlags};
 use weld_parser_macros::EnumParse;
 
 use super::{Address, Alignment, Data, DataType};
-use crate::{combinators::*, Input, Result};
+use crate::{combinators::*, Input, NumberParser, Result};
 
 /// Program.
 #[derive(Debug)]
@@ -71,6 +71,7 @@ impl<'a> Program<'a> {
             data: Data::new(
                 &file[offset.into()..][..segment_size_in_file_image.try_into().unwrap()],
                 DataType::Unspecified,
+                N::endianness(),
             ),
         };
 

@@ -3,7 +3,7 @@ use enumflags2::{bitflags, BitFlags};
 use weld_parser_macros::EnumParse;
 
 use super::{Address, Alignment, Data};
-use crate::{combinators::*, Input, Result};
+use crate::{combinators::*, Input, NumberParser, Result};
 
 /// Section header.
 #[derive(Debug)]
@@ -86,6 +86,7 @@ impl<'a> Section<'a> {
             data: Data::new(
                 &file[offset.into()..][..segment_size_in_file_image.into()],
                 r#type.into(),
+                N::endianness(),
             ),
         };
 

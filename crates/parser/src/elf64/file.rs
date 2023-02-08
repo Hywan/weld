@@ -2,7 +2,7 @@ use bstr::BStr;
 use weld_parser_macros::EnumParse;
 
 use super::{Address, Program, Section, SectionIndex, SectionType};
-use crate::{combinators::*, Input, Result};
+use crate::{combinators::*, BigEndian, Input, LittleEndian, NumberParser, Result};
 
 /// Object file.
 #[derive(Debug)]

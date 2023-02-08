@@ -2,7 +2,7 @@ use std::{fmt, num::NonZeroU64, ops::Add};
 
 use nom::Err::Error;
 
-use crate::{combinators::*, Input, Result};
+use crate::{combinators::*, Input, NumberParser, Result};
 
 mod data;
 mod file;

@@ -11,6 +11,7 @@ use super::SectionType;
 pub struct Data<'a> {
     pub(crate) inner: &'a [u8],
     pub(crate) r#type: DataType,
+    endianness: Endianness,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -30,8 +31,8 @@ impl From<SectionType> for DataType {
 
 impl<'a> Data<'a> {
     /// Create a new `Data` type, wrapping some bytes.
-    pub(crate) fn new(inner: &'a [u8], r#type: DataType) -> Self {
-        Self { inner, r#type }
+    pub(crate) fn new(inner: &'a [u8], r#type: DataType, endianness: Endianness) -> Self {
+        Self { inner, r#type, endianness }
     }
 
     /// Get the string at a specific offset, if and only if (i) the data type
