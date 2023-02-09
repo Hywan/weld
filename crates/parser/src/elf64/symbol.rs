@@ -13,7 +13,7 @@ pub struct Symbol<'a> {
     /// An offset, in bytes, to the symbol name, relative to the start
     /// of the symbol string table. If this field contains zero, the symbol has
     /// no name.
-    pub(super) name_offset: Address,
+    pub name_offset: Address,
     /// The symbol type.
     pub r#type: SymbolType,
     /// The symbol binding attribute, i.e. its scope.

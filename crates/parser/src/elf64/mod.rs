@@ -124,15 +124,23 @@ mod tests {
         // dbg!(&remaining);
         dbg!(&file);
 
-        let symbol_section = file
-            .sections
-            .iter()
-            .find(|section| section.r#type == SectionType::SymbolTable)
-            .unwrap();
+        let string_section = file.sections.iter().find(|section| matches!(section, Section { r#type: SectionType::StringTable, name: Some(section_name), .. } if *section_name == ".strtab")).unwrap();
 
-        for symbol in symbol_section.data.symbols::<VerboseError<Input>>().unwrap() {
-            let symbol = symbol.unwrap();
-            dbg!(&symbol);
+        for section in
+            file.sections.iter().filter(|section| section.r#type == SectionType::SymbolTable)
+        {
+            let symbols = section
+                .data
+                .symbols::<VerboseError<Input>>()
+                .unwrap()
+                .map(|symbol| symbol.unwrap())
+                .map(|mut symbol| {
+                    symbol.name = string_section.data.string_at_offset(symbol.name_offset.into());
+                    symbol
+                })
+                .collect::<Vec<_>>();
+
+            dbg!(&symbols);
         }
     }
 }

@@ -1,6 +1,7 @@
 use std::fmt;
 
 use bstr::BStr;
+use nom::error::VerboseError;
 
 use super::{SectionType, Symbol, SymbolIterator};
 use crate::{combinators::*, Endianness, Input};
@@ -102,8 +103,11 @@ impl<'a> fmt::Debug for Data<'a> {
                 self.inner.split(|c| *c == 0x00).map(BStr::new).collect::<Vec<_>>()
             )),
 
-            DataType::SymbolTable => formatter
-                .write_fmt(format_args!("{:?} Data(..), interpreted: {:#?}", self.r#type, "")),
+            DataType::SymbolTable => formatter.write_fmt(format_args!(
+                "{:?} Data(..), interpreted: {:#?}",
+                self.r#type,
+                self.symbols::<VerboseError<Input>>().unwrap().collect::<Vec<_>>()
+            )),
         }
     }
 }

@@ -145,7 +145,7 @@ impl<'a> File<'a> {
             }
         }
 
-        let file_header = Self {
+        let file = Self {
             endianness,
             version,
             os_abi,
@@ -157,7 +157,7 @@ impl<'a> File<'a> {
             sections,
         };
 
-        Ok((input, file_header))
+        Ok((input, file))
     }
 }
 
