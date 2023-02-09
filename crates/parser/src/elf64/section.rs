@@ -1,3 +1,5 @@
+use std::num::NonZeroU64;
+
 use bstr::BStr;
 use enumflags2::{bitflags, BitFlags};
 use weld_parser_macros::EnumParse;
@@ -33,7 +35,7 @@ pub struct Section<'a> {
     pub alignment: Alignment,
     /// Contains some size, in bytes, of each entry, for sections that contain
     /// fixed-sized entries.
-    pub entity_size: Option<u64>,
+    pub entity_size: Option<NonZeroU64>,
     /// Data.
     pub data: Data<'a>,
 }
@@ -71,6 +73,13 @@ impl<'a> Section<'a> {
             N::u64,
         ))(input)?;
 
+        let entity_size = if entity_size != 0 {
+            // SAFETY: We just checked `entity_size` is not 0.
+            Some(unsafe { NonZeroU64::new_unchecked(entity_size) })
+        } else {
+            None
+        };
+
         let section_header = Self {
             name: None,
             name_offset: name_offset.into(),
@@ -82,7 +91,7 @@ impl<'a> Section<'a> {
             link,
             information,
             alignment,
-            entity_size: if entity_size == 0 { None } else { Some(entity_size) },
+            entity_size,
             data: Data::new(
                 &file[offset.into()..][..segment_size_in_file_image.into()],
                 r#type.into(),
