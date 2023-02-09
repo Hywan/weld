@@ -76,7 +76,7 @@ pub enum SymbolBinding {
     /// Low processor-specific use.
     LowProcessorSpecific = 0x0d,
     /// High processor-specific use.
-    HighProcessorSpecific = 0x0e,
+    HighProcessorSpecific = 0x0f,
 }
 
 impl SymbolBinding {
@@ -96,7 +96,7 @@ impl SymbolBinding {
                 0x0a => Self::LowEnvironmentSpecific,
                 0x0c => Self::HighProcessorSpecific,
                 0x0d => Self::LowEnvironmentSpecific,
-                0x0e => Self::HighProcessorSpecific,
+                0x0f => Self::HighProcessorSpecific,
                 _ => return Err(Err::Error(E::from_error_kind(input, ErrorKind::Alt))),
             },
         ))
@@ -117,6 +117,14 @@ pub enum SymbolType {
     Section = 0x03,
     /// Source file associated with the object file.
     File = 0x04,
+    /// Low environment-specific use.
+    LowEnvironmentSpecific = 0x0a,
+    /// High environment-specific use.
+    HighEnvironmentSpecific = 0x0c,
+    /// Low processor-specific use.
+    LowProcessorSpecific = 0x0d,
+    /// High processor-specific use.
+    HighProcessorSpecific = 0x0f,
 }
 
 impl SymbolType {
@@ -135,6 +143,10 @@ impl SymbolType {
                 0x02 => Self::Function,
                 0x03 => Self::Section,
                 0x04 => Self::File,
+                0x0a => Self::LowEnvironmentSpecific,
+                0x0c => Self::HighProcessorSpecific,
+                0x0d => Self::LowEnvironmentSpecific,
+                0x0f => Self::HighProcessorSpecific,
                 _ => return Err(Err::Error(E::from_error_kind(input, ErrorKind::Alt))),
             },
         ))
