@@ -83,7 +83,7 @@ impl<'a> Data<'a> {
             return None;
         }
 
-        Some(SymbolIterator::new(self.inner, self.endianness))
+        Some(SymbolIterator::new(self.inner, self.endianness, self.entity_size))
     }
 }
 

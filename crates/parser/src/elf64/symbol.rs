@@ -1,6 +1,7 @@
-use std::{marker::PhantomData, result::Result as StdResult};
+use std::{marker::PhantomData, num::NonZeroU64, result::Result as StdResult};
 
 use bstr::BStr;
+use nom::Offset;
 
 use super::{Address, SectionIndex};
 use crate::{combinators::*, BigEndian, Endianness, Input, LittleEndian, NumberParser, Result};
@@ -179,6 +180,7 @@ where
 {
     input: Input<'a>,
     endianness: Endianness,
+    entity_size: Option<NonZeroU64>,
     _phantom: PhantomData<E>,
 }
 
@@ -186,8 +188,12 @@ impl<'a, E> SymbolIterator<'a, E>
 where
     E: ParseError<Input<'a>>,
 {
-    pub(super) fn new(input: Input<'a>, endianness: Endianness) -> Self {
-        Self { input, endianness, _phantom: PhantomData }
+    pub(super) fn new(
+        input: Input<'a>,
+        endianness: Endianness,
+        entity_size: Option<NonZeroU64>,
+    ) -> Self {
+        Self { input, endianness, entity_size, _phantom: PhantomData }
     }
 }
 
@@ -209,6 +215,21 @@ where
 
         match parsed {
             Ok((next_input, symbol)) => {
+                // Ensure we have parsed the correct amount of bytes.
+                if let Some(entity_size) = self.entity_size {
+                    let offset = self.input.offset(next_input);
+                    let entity_size: usize = u64::from(entity_size)
+                        .try_into()
+                        .expect("Failed to cast the entity size from `u64` to `usize`");
+
+                    if offset != entity_size {
+                        return Some(Err(Err::Error(E::from_error_kind(
+                            self.input,
+                            ErrorKind::LengthValue,
+                        ))));
+                    }
+                }
+
                 self.input = next_input;
                 Some(Ok(symbol))
             }
