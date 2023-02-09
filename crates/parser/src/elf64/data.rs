@@ -47,7 +47,7 @@ impl<'a> Data<'a> {
     ///
     /// The string is not guaranteed to be valid UTF-8. It is a bytes slice,
     /// `&[u8]`.
-    pub fn get_string_at_offset(&self, offset: usize) -> Option<&'a BStr> {
+    pub fn string_at_offset(&self, offset: usize) -> Option<&'a BStr> {
         if self.r#type != DataType::StringTable {
             return None;
         }
@@ -63,7 +63,7 @@ impl<'a> Data<'a> {
 
     /// Get an iterator over symbols, if and only if the data type is
     /// [`DataType::SymbolTable`].
-    pub fn iter_symbols<E>(&self) -> Option<impl Iterator<Item = Result<Symbol<'a>, Err<E>>>>
+    pub fn symbols<E>(&self) -> Option<impl Iterator<Item = Result<Symbol<'a>, Err<E>>>>
     where
         E: ParseError<Input<'a>>,
     {
