@@ -69,6 +69,14 @@ pub enum SymbolBinding {
     Global = 0x01,
     /// Global scope, but with lower precedence than global symbols.
     Weak = 0x02,
+    /// Low environment-specific use.
+    LowEnvironmentSpecific = 0x0a,
+    /// High environment-specific use.
+    HighEnvironmentSpecific = 0x0c,
+    /// Low processor-specific use.
+    LowProcessorSpecific = 0x0d,
+    /// High processor-specific use.
+    HighProcessorSpecific = 0x0e,
 }
 
 impl SymbolBinding {
@@ -85,6 +93,10 @@ impl SymbolBinding {
                 0x00 => Self::Local,
                 0x01 => Self::Global,
                 0x02 => Self::Weak,
+                0x0a => Self::LowEnvironmentSpecific,
+                0x0c => Self::HighProcessorSpecific,
+                0x0d => Self::LowEnvironmentSpecific,
+                0x0e => Self::HighProcessorSpecific,
                 _ => return Err(Err::Error(E::from_error_kind(input, ErrorKind::Alt))),
             },
         ))
