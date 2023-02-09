@@ -72,6 +72,7 @@ impl<'a> Program<'a> {
                 &file[offset.into()..][..segment_size_in_file_image.try_into().unwrap()],
                 DataType::Unspecified,
                 N::endianness(),
+                None,
             ),
         };
 

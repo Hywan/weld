@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, num::NonZeroU64};
 
 use bstr::BStr;
 use nom::error::VerboseError;
@@ -11,9 +11,15 @@ use crate::{combinators::*, Endianness, Input};
 /// It represents the data owned by a [`Program`][super::Program] or a
 /// [`Section`][super::Section].
 pub struct Data<'a> {
+    /// Inner bytes.
     pub(crate) inner: &'a [u8],
+    /// The type of the data represented by the bytes.
     pub(crate) r#type: DataType,
+    /// The endianness of the data.
     endianness: Endianness,
+    /// The size, in bytes, of each “entry”, if the data represents fixed-sized
+    /// entries.
+    entity_size: Option<NonZeroU64>,
 }
 
 /// The type of `Data`.
@@ -39,8 +45,13 @@ impl From<SectionType> for DataType {
 
 impl<'a> Data<'a> {
     /// Create a new `Data` type, wrapping some bytes.
-    pub(crate) fn new(inner: &'a [u8], r#type: DataType, endianness: Endianness) -> Self {
-        Self { inner, r#type, endianness }
+    pub(crate) fn new(
+        inner: &'a [u8],
+        r#type: DataType,
+        endianness: Endianness,
+        entity_size: Option<NonZeroU64>,
+    ) -> Self {
+        Self { inner, r#type, endianness, entity_size }
     }
 
     /// Get the string at a specific offset, if and only if (i) the data type

@@ -96,6 +96,7 @@ impl<'a> Section<'a> {
                 &file[offset.into()..][..segment_size_in_file_image.into()],
                 r#type.into(),
                 N::endianness(),
+                entity_size,
             ),
         };
 
