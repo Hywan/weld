@@ -8,12 +8,31 @@ use crate::{combinators::*, BigEndian, Endianness, Input, LittleEndian, NumberPa
 /// A symbol.
 #[derive(Debug)]
 pub struct Symbol<'a> {
+    // Name of the symbol, if any.
     pub name: Option<&'a BStr>,
+    /// An offset, in bytes, to the symbol name, relative to the start
+    /// of the symbol string table. If this field contains zero, the symbol has
+    /// no name.
     pub(super) name_offset: Address,
+    /// The symbol type.
     pub r#type: SymbolType,
+    /// The symbol binding attribute, i.e. its scope.
     pub binding: SymbolBinding,
+    /// The section index of the section in which the symbol is “defined”.
     pub section_index_where_symbol_is_defined: SectionIndex,
+    /// The value of the symbol. This may be an absolute value or a relocatable
+    /// address.
+    ///
+    /// In relocatable files, this field contains the alignment constraint for
+    /// common symbols, and a section-relative offset for defined relocatable
+    /// symbols.
+    ///
+    /// In executable of shared object files, this field contains a virtual
+    /// address for defined relocatable symbols.
     pub value: Address,
+    /// The size of the value associated with the symbol. If a symbol does not
+    /// have an associated size, or the size is unknown, this field contains
+    /// zero.
     pub size: u64,
 }
 

@@ -197,6 +197,7 @@ impl SectionFlag {
     }
 }
 
+/// Section index.
 #[derive(Debug)]
 pub enum SectionIndex {
     /// A valid section index.
@@ -239,7 +240,7 @@ impl SectionIndex {
         Self::_parse(input, index)
     }
 
-    pub fn _parse<'a, E>(input: Input<'a>, index: u32) -> Result<'a, Self, E>
+    fn _parse<'a, E>(input: Input<'a>, index: u32) -> Result<'a, Self, E>
     where
         E: ParseError<Input<'a>>,
     {
