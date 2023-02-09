@@ -32,6 +32,16 @@ impl Address {
         Ok((input, Address(address)))
     }
 
+    pub fn parse_u32<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+    where
+        N: NumberParser<'a, E>,
+        E: ParseError<Input<'a>>,
+    {
+        let (input, address) = N::u32(input)?;
+
+        Ok((input, Address(address.into())))
+    }
+
     pub fn maybe_parse<'a, N, E>(input: Input<'a>) -> Result<Option<Self>, E>
     where
         N: NumberParser<'a, E>,

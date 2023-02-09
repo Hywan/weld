@@ -54,7 +54,7 @@ impl<'a> Symbol<'a> {
                 size,
             ),
         ) = tuple((
-            N::u32,
+            Address::parse_u32::<N, _>,
             SymbolBinding::parse::<N, _>,
             SymbolType::parse::<N, _>,
             tag(&[0x00]),
@@ -67,7 +67,7 @@ impl<'a> Symbol<'a> {
             input,
             Self {
                 name: None,
-                name_offset: name_offset.into(),
+                name_offset,
                 r#type,
                 binding,
                 section_index_where_symbol_is_defined,
