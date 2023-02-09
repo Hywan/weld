@@ -130,7 +130,7 @@ mod tests {
             .find(|section| section.r#type == SectionType::SymbolTable)
             .unwrap();
 
-        for symbol in symbol_section.data.iter_symbols::<VerboseError<Input>>().unwrap() {
+        for symbol in symbol_section.data.symbols::<VerboseError<Input>>().unwrap() {
             let symbol = symbol.unwrap();
             dbg!(&symbol);
         }
