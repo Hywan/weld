@@ -208,7 +208,7 @@ impl SectionFlag {
 }
 
 /// Section index.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum SectionIndex {
     /// A valid section index.
     Ok(usize),

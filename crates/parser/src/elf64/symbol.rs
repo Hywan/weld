@@ -7,7 +7,7 @@ use super::{Address, SectionIndex};
 use crate::{combinators::*, BigEndian, Endianness, Input, LittleEndian, NumberParser, Result};
 
 /// A symbol.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Symbol<'a> {
     // Name of the symbol, if any.
     pub name: Option<&'a BStr>,
@@ -81,7 +81,6 @@ impl<'a> Symbol<'a> {
 
 /// A symbol binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
 pub enum SymbolBinding {
     /// The symbol is not visible outside the object file.
     Local = 0x00,
@@ -125,7 +124,6 @@ impl SymbolBinding {
 
 /// A symbol type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
 pub enum SymbolType {
     /// No type specified (e.g., an absolute symbol).
     NoType = 0x00,
@@ -170,6 +168,103 @@ impl SymbolType {
                 _ => return Err(Err::Error(E::from_error_kind(input, ErrorKind::Alt))),
             },
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_symbol() {
+        #[rustfmt::skip]
+        let input: &[u8] = &[
+            // Name offset.
+            0x00, 0x00, 0x00, 0x01,
+            // Binding + type.
+            0x01 | 0x02,
+            // (other).
+            0x00,
+            // Section index.
+            0x00, 0x02,
+            // Value.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07,
+            // Size.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+        ];
+
+        assert_eq!(
+            Symbol::parse::<BigEndian, ()>(input),
+            Ok((
+                &[] as &[u8],
+                Symbol {
+                    name: None,
+                    name_offset: Address(1),
+                    binding: SymbolBinding::Local,
+                    r#type: SymbolType::Section,
+                    section_index_where_symbol_is_defined: SectionIndex::Ok(2),
+                    value: Address(7),
+                    size: 1,
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_symbol_binding() {
+        macro_rules! test {
+            ($input:expr => $result:expr) => {{
+                let input: u8 = $input << 4;
+                assert_eq!(
+                    SymbolBinding::parse::<crate::LittleEndian, ()>(&[input]),
+                    Ok((&[input] as &[u8], $result))
+                    //    ^~~~~ doesn't consume the input!
+                );
+            }};
+
+            ( $( $input:expr => $result:expr ),* $(,)? ) => {
+                $( test!($input => $result); )*
+            };
+        }
+
+        test!(
+            0x00 => SymbolBinding::Local,
+            0x01 => SymbolBinding::Global,
+            0x02 => SymbolBinding::Weak,
+            0x0a => SymbolBinding::LowEnvironmentSpecific,
+            0x0c => SymbolBinding::HighProcessorSpecific,
+            0x0d => SymbolBinding::LowEnvironmentSpecific,
+            0x0f => SymbolBinding::HighProcessorSpecific,
+        );
+    }
+
+    #[test]
+    fn test_symbol_type() {
+        macro_rules! test {
+            ($input:expr => $result:expr) => {{
+                let input: u8 = $input & 0x0f;
+                assert_eq!(
+                    SymbolType::parse::<crate::LittleEndian, ()>(&[input]),
+                    Ok((&[] as &[u8], $result))
+                );
+            }};
+
+            ( $( $input:expr => $result:expr ),* $(,)? ) => {
+                $( test!($input => $result); )*
+            };
+        }
+
+        test!(
+            0x00 => SymbolType::NoType,
+            0x01 => SymbolType::Object,
+            0x02 => SymbolType::Function,
+            0x03 => SymbolType::Section,
+            0x04 => SymbolType::File,
+            0x0a => SymbolType::LowEnvironmentSpecific,
+            0x0c => SymbolType::HighProcessorSpecific,
+            0x0d => SymbolType::LowEnvironmentSpecific,
+            0x0f => SymbolType::HighProcessorSpecific,
+        );
     }
 }
 

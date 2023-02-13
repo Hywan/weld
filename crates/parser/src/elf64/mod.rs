@@ -18,7 +18,7 @@ pub use symbol::*;
 
 /// An address within the file.
 #[repr(transparent)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Address(pub u64);
 
 impl Address {
