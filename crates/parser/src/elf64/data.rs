@@ -122,3 +122,30 @@ impl<'a> fmt::Debug for Data<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_string_at_offset() {
+        let data = Data::new(
+            &[0x0, 0x61, 0x62, 0x63, 0x0, 0x64, 0x65, 0x0, 0x66],
+            DataType::StringTable,
+            Endianness::Little,
+            None,
+        );
+
+        assert_eq!(data.string_at_offset(0), Some(BStr::new("")));
+        assert_eq!(data.string_at_offset(1), Some(BStr::new("abc")));
+        assert_eq!(data.string_at_offset(2), Some(BStr::new("bc")));
+        assert_eq!(data.string_at_offset(3), Some(BStr::new("c")));
+        assert_eq!(data.string_at_offset(4), Some(BStr::new("")));
+        assert_eq!(data.string_at_offset(5), Some(BStr::new("de")));
+        assert_eq!(data.string_at_offset(6), Some(BStr::new("e")));
+        assert_eq!(data.string_at_offset(7), Some(BStr::new("")));
+        assert_eq!(data.string_at_offset(8), None);
+        assert_eq!(data.string_at_offset(9), None);
+        assert_eq!(data.string_at_offset(10), None);
+    }
+}

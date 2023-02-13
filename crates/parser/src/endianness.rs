@@ -89,3 +89,50 @@ where
         be_u64(input)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_little_endian() {
+        assert_eq!(<LittleEndian as NumberParser<()>>::endianness(), Endianness::Little);
+        assert_eq!(
+            <LittleEndian as NumberParser<()>>::u8(&42u8.to_le_bytes()),
+            Ok((&[] as &[u8], 42))
+        );
+        assert_eq!(
+            <LittleEndian as NumberParser<()>>::u16(&42u16.to_le_bytes()),
+            Ok((&[] as &[u8], 42))
+        );
+        assert_eq!(
+            <LittleEndian as NumberParser<()>>::u32(&42u32.to_le_bytes()),
+            Ok((&[] as &[u8], 42))
+        );
+        assert_eq!(
+            <LittleEndian as NumberParser<()>>::u64(&42u64.to_le_bytes()),
+            Ok((&[] as &[u8], 42))
+        );
+    }
+
+    #[test]
+    fn test_big_endian() {
+        assert_eq!(<BigEndian as NumberParser<()>>::endianness(), Endianness::Big);
+        assert_eq!(
+            <BigEndian as NumberParser<()>>::u8(&42u8.to_be_bytes()),
+            Ok((&[] as &[u8], 42))
+        );
+        assert_eq!(
+            <BigEndian as NumberParser<()>>::u16(&42u16.to_be_bytes()),
+            Ok((&[] as &[u8], 42))
+        );
+        assert_eq!(
+            <BigEndian as NumberParser<()>>::u32(&42u32.to_be_bytes()),
+            Ok((&[] as &[u8], 42))
+        );
+        assert_eq!(
+            <BigEndian as NumberParser<()>>::u64(&42u64.to_be_bytes()),
+            Ok((&[] as &[u8], 42))
+        );
+    }
+}

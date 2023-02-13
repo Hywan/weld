@@ -22,3 +22,15 @@ where
         Ok(index) => Ok((&input[index..], &[])),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_skip() {
+        let input: &[u8] = &[1, 2, 3, 4, 5];
+
+        assert_eq!(skip::<_, ()>(2usize)(input), Ok((&[3, 4, 5][..], &[] as &[u8])));
+    }
+}
