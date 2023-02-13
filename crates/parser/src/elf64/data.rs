@@ -55,12 +55,17 @@ impl<'a> Data<'a> {
     }
 
     /// Get the string at a specific offset, if and only if (i) the data type
-    /// is [`DataType::StringTable`] and (ii) the string is null-terminated.
+    /// is [`DataType::StringTable`], (ii) the string is null-terminated, and
+    /// (iii) if the offset exists.
     ///
     /// The string is not guaranteed to be valid UTF-8. It is a bytes slice,
     /// `&[u8]`.
     pub fn string_at_offset(&self, offset: usize) -> Option<&'a BStr> {
         if self.r#type != DataType::StringTable {
+            return None;
+        }
+
+        if offset >= self.inner.len() {
             return None;
         }
 
