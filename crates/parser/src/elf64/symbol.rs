@@ -80,7 +80,7 @@ impl<'a> Symbol<'a> {
 }
 
 /// A symbol binding.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum SymbolBinding {
     /// The symbol is not visible outside the object file.
@@ -124,7 +124,7 @@ impl SymbolBinding {
 }
 
 /// A symbol type.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum SymbolType {
     /// No type specified (e.g., an absolute symbol).

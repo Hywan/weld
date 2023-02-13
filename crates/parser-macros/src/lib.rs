@@ -27,8 +27,9 @@ fn derive_enum_parse_impl(
 ) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
+    let repr = repr.expect("A `#repr(…)` attribute must be present");
     let parser_combinator = proc_macro2::Ident::new(
-        match repr.expect("A `#repr(…)` attribute must be present").to_string().as_str() {
+        match repr.to_string().as_str() {
             "u8" => "u8",
             "u16" => "u16",
             "u32" => "u32",
@@ -37,7 +38,7 @@ fn derive_enum_parse_impl(
         proc_macro2::Span::call_site(),
     );
 
-    let parser_logic: Vec<_> = data
+    let (parser_logic, variants): (Vec<_>, Vec<_>) = data
         .variants
         .iter()
         .map(|variant| {
@@ -45,15 +46,25 @@ fn derive_enum_parse_impl(
             let discriminant = match &variant.discriminant {
                 Some((_, syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(int), .. }))) => int,
                 _ => panic!(
-                    "All variants must have a discriminant, and it must reprenset an integer"
+                    "All variants must have a discriminant, and it must represent an integer"
                 ),
             };
 
-            quote! {
-                #discriminant => Self::#name
-            }
+            (
+                quote! {
+                    #discriminant => Self::#name
+                },
+                quote! {
+                    #name
+                },
+            )
         })
-        .collect();
+        .unzip();
+
+    let test_name = proc_macro2::Ident::new(
+        &format!("test_{}", enum_name.to_string().to_lowercase()),
+        proc_macro2::Span::call_site(),
+    );
 
     quote! {
         impl #impl_generics #enum_name #ty_generics
@@ -74,6 +85,24 @@ fn derive_enum_parse_impl(
                     }
                 ))
             }
+        }
+
+        #[test]
+        fn #test_name() {
+            #(
+                {
+                    let input: #repr = #enum_name::#variants as _;
+
+                    assert_eq!(
+                        #enum_name::parse::<crate::LittleEndian, ()>(&input.to_le_bytes()[..]),
+                        Ok((&[] as &[u8], #enum_name::#variants))
+                    );
+                    assert_eq!(
+                        #enum_name::parse::<crate::BigEndian, ()>(&input.to_be_bytes()[..]),
+                        Ok((&[] as &[u8], #enum_name::#variants))
+                    );
+                }
+            )*
         }
     }
     .into()
