@@ -171,6 +171,72 @@ impl SymbolType {
     }
 }
 
+/// An iterator producing [`Symbol`]s.
+pub struct SymbolIterator<'a, E>
+where
+    E: ParseError<Input<'a>>,
+{
+    input: Input<'a>,
+    endianness: Endianness,
+    entity_size: Option<NonZeroU64>,
+    _phantom: PhantomData<E>,
+}
+
+impl<'a, E> SymbolIterator<'a, E>
+where
+    E: ParseError<Input<'a>>,
+{
+    pub(super) fn new(
+        input: Input<'a>,
+        endianness: Endianness,
+        entity_size: Option<NonZeroU64>,
+    ) -> Self {
+        Self { input, endianness, entity_size, _phantom: PhantomData }
+    }
+}
+
+impl<'a, E> Iterator for SymbolIterator<'a, E>
+where
+    E: ParseError<Input<'a>>,
+{
+    type Item = StdResult<Symbol<'a>, Err<E>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.input.is_empty() {
+            return None;
+        }
+
+        let parsed = match self.endianness {
+            Endianness::Big => Symbol::parse::<BigEndian, E>(self.input),
+            Endianness::Little => Symbol::parse::<LittleEndian, E>(self.input),
+        };
+
+        match parsed {
+            Ok((next_input, symbol)) => {
+                // Ensure we have parsed the correct amount of bytes.
+                if let Some(entity_size) = self.entity_size {
+                    let offset = self.input.offset(next_input);
+                    let entity_size: usize = u64::from(entity_size)
+                        .try_into()
+                        .expect("Failed to cast the entity size from `u64` to `usize`");
+
+                    if offset != entity_size {
+                        return Some(Err(Err::Error(E::from_error_kind(
+                            self.input,
+                            ErrorKind::LengthValue,
+                        ))));
+                    }
+                }
+
+                self.input = next_input;
+                Some(Ok(symbol))
+            }
+
+            Err(err) => Some(Err(err)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -182,7 +248,7 @@ mod tests {
             // Name offset.
             0x00, 0x00, 0x00, 0x01,
             // Binding + type.
-            0x01 | 0x02,
+            (0x01 << 4) | 0x02,
             // (other).
             0x00,
             // Section index.
@@ -200,8 +266,8 @@ mod tests {
                 Symbol {
                     name: None,
                     name_offset: Address(1),
-                    binding: SymbolBinding::Local,
-                    r#type: SymbolType::Section,
+                    binding: SymbolBinding::Global,
+                    r#type: SymbolType::Function,
                     section_index_where_symbol_is_defined: SectionIndex::Ok(2),
                     value: Address(7),
                     size: 1,
@@ -266,70 +332,80 @@ mod tests {
             0x0f => SymbolType::HighProcessorSpecific,
         );
     }
-}
 
-/// An iterator producing [`Symbol`]s.
-pub struct SymbolIterator<'a, E>
-where
-    E: ParseError<Input<'a>>,
-{
-    input: Input<'a>,
-    endianness: Endianness,
-    entity_size: Option<NonZeroU64>,
-    _phantom: PhantomData<E>,
-}
+    #[test]
+    fn test_symbol_iterator() {
+        #[rustfmt::skip]
+        let input: &[u8] = &[
+            // Symbol 1.
 
-impl<'a, E> SymbolIterator<'a, E>
-where
-    E: ParseError<Input<'a>>,
-{
-    pub(super) fn new(
-        input: Input<'a>,
-        endianness: Endianness,
-        entity_size: Option<NonZeroU64>,
-    ) -> Self {
-        Self { input, endianness, entity_size, _phantom: PhantomData }
-    }
-}
+            // Name offset.
+            0x00, 0x00, 0x00, 0x01,
+            // Binding + type.
+            (0x01 << 4) | 0x02,
+            // (other).
+            0x00,
+            // Section index.
+            0x00, 0x02,
+            // Value.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07,
+            // Size.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
 
-impl<'a, E> Iterator for SymbolIterator<'a, E>
-where
-    E: ParseError<Input<'a>>,
-{
-    type Item = StdResult<Symbol<'a>, Err<E>>;
+            // Symbol 2.
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.input.is_empty() {
-            return None;
+            // Name offset.
+            0x00, 0x00, 0x00, 0x03,
+            // Binding + type.
+            (0x02 << 4) | 0x03,
+            // (other).
+            0x00,
+            // Section index.
+            0x00, 0x01,
+            // Value.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05,
+            // Size.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
+        ];
+
+        let mut iterator = SymbolIterator::<()>::new(input, Endianness::Big, None);
+
+        {
+            let symbol = iterator.next();
+
+            assert_eq!(
+                symbol,
+                Some(Ok(Symbol {
+                    name: None,
+                    name_offset: Address(1),
+                    binding: SymbolBinding::Global,
+                    r#type: SymbolType::Function,
+                    section_index_where_symbol_is_defined: SectionIndex::Ok(2),
+                    value: Address(7),
+                    size: 1,
+                }))
+            )
         }
 
-        let parsed = match self.endianness {
-            Endianness::Big => Symbol::parse::<BigEndian, E>(self.input),
-            Endianness::Little => Symbol::parse::<LittleEndian, E>(self.input),
-        };
+        {
+            let symbol = iterator.next();
 
-        match parsed {
-            Ok((next_input, symbol)) => {
-                // Ensure we have parsed the correct amount of bytes.
-                if let Some(entity_size) = self.entity_size {
-                    let offset = self.input.offset(next_input);
-                    let entity_size: usize = u64::from(entity_size)
-                        .try_into()
-                        .expect("Failed to cast the entity size from `u64` to `usize`");
+            assert_eq!(
+                symbol,
+                Some(Ok(Symbol {
+                    name: None,
+                    name_offset: Address(3),
+                    binding: SymbolBinding::Weak,
+                    r#type: SymbolType::Section,
+                    section_index_where_symbol_is_defined: SectionIndex::Ok(1),
+                    value: Address(5),
+                    size: 2,
+                }))
+            )
+        }
 
-                    if offset != entity_size {
-                        return Some(Err(Err::Error(E::from_error_kind(
-                            self.input,
-                            ErrorKind::LengthValue,
-                        ))));
-                    }
-                }
-
-                self.input = next_input;
-                Some(Ok(symbol))
-            }
-
-            Err(err) => Some(Err(err)),
+        {
+            assert_eq!(iterator.next(), None);
         }
     }
 }
