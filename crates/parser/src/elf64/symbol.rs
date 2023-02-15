@@ -248,7 +248,7 @@ mod tests {
             // Name offset.
             0x00, 0x00, 0x00, 0x01,
             // Binding + type.
-            (0x01 << 4) | 0x02,
+            0x12,
             // (other).
             0x00,
             // Section index.
@@ -342,7 +342,7 @@ mod tests {
             // Name offset.
             0x00, 0x00, 0x00, 0x01,
             // Binding + type.
-            (0x01 << 4) | 0x02,
+            0x12,
             // (other).
             0x00,
             // Section index.
@@ -357,7 +357,7 @@ mod tests {
             // Name offset.
             0x00, 0x00, 0x00, 0x03,
             // Binding + type.
-            (0x02 << 4) | 0x03,
+            0x23,
             // (other).
             0x00,
             // Section index.
