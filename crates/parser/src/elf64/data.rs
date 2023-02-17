@@ -6,22 +6,6 @@ use nom::error::VerboseError;
 use super::{SectionType, Symbol, SymbolIterator};
 use crate::{combinators::*, Endianness, Input};
 
-/// `Data` is a wrapper around `&[u8]`.
-///
-/// It represents the data owned by a [`Program`][super::Program] or a
-/// [`Section`][super::Section].
-pub struct Data<'a> {
-    /// Inner bytes.
-    pub(crate) inner: &'a [u8],
-    /// The type of the data represented by the bytes.
-    pub(crate) r#type: DataType,
-    /// The endianness of the data.
-    endianness: Endianness,
-    /// The size, in bytes, of each “entry”, if the data represents fixed-sized
-    /// entries.
-    entity_size: Option<NonZeroU64>,
-}
-
 /// The type of `Data`.
 #[derive(Debug, PartialEq, Eq)]
 pub enum DataType {
@@ -41,6 +25,23 @@ impl From<SectionType> for DataType {
             _ => Self::Unspecified,
         }
     }
+}
+
+/// `Data` is a wrapper around `&[u8]`.
+///
+/// It represents the data owned by a [`Program`][super::Program] or a
+/// [`Section`][super::Section].
+#[derive(PartialEq)]
+pub struct Data<'a> {
+    /// Inner bytes.
+    pub(crate) inner: &'a [u8],
+    /// The type of the data represented by the bytes.
+    pub(crate) r#type: DataType,
+    /// The endianness of the data.
+    endianness: Endianness,
+    /// The size, in bytes, of each “entry”, if the data represents fixed-sized
+    /// entries.
+    entity_size: Option<NonZeroU64>,
 }
 
 impl<'a> Data<'a> {
