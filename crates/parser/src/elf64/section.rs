@@ -8,7 +8,7 @@ use super::{Address, Alignment, Data};
 use crate::{combinators::*, Input, NumberParser, Result};
 
 /// Section header.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Section<'a> {
     /// Name of the section, if any.
     pub name: Option<&'a BStr>,
@@ -271,5 +271,104 @@ impl SectionIndex {
                 ),
             },
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{super::DataType, *};
+    use crate::{BigEndian, Endianness};
+
+    #[test]
+    fn test_section() {
+        #[rustfmt::skip]
+        let input: &[u8] = &[
+            // Name offset.
+            0x00, 0x00, 0x00, 0x01,
+            // Type.
+            0x00, 0x00, 0x00, 0x03,
+            // Flag.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            // Virtual address.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07,
+            // Offset.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            // Segment size in file image.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05,
+            // Link.
+            0x00, 0x00, 0x00, 0x03,
+            // Information.
+            0x00, 0x00, 0x00, 0x00,
+            // Alignment.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
+            // Entity size.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+
+        let file: &[u8] = &[0x0, 0x61, 0x62, 0x63, 0x0];
+
+        assert_eq!(
+            Section::parse::<BigEndian, ()>(file, input),
+            Ok((
+                &[] as &[u8],
+                Section {
+                    name: None,
+                    name_offset: Address(1),
+                    r#type: SectionType::StringTable,
+                    flags: SectionFlags::EMPTY,
+                    virtual_address: Address(7),
+                    offset: Address(0),
+                    segment_size_in_file_image: Address(5),
+                    link: SectionIndex::Ok(3),
+                    information: 0,
+                    alignment: Alignment(Some(NonZeroU64::new(512).unwrap())),
+                    entity_size: None,
+                    data: Data::new(&file[..], DataType::StringTable, Endianness::Big, None),
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_section_index() {
+        macro_rules! test {
+            ($input:expr => $result:expr) => {{
+                // u16
+                {
+                    let input: u16 = $input;
+
+                    assert_eq!(
+                        SectionIndex::parse_u16::<crate::BigEndian, ()>(&input.to_be_bytes()),
+                        Ok((&[] as &[u8], $result))
+                    );
+                }
+
+                // u32
+                {
+                    let input: u32 = $input;
+
+                    assert_eq!(
+                        SectionIndex::parse_u32::<crate::BigEndian, ()>(&input.to_be_bytes()),
+                        Ok((&[] as &[u8], $result))
+                    );
+                }
+            }};
+
+            ( $( $input:expr => $result:expr ),* $(,)? ) => {
+                $( test!($input => $result); )*
+            };
+        }
+
+        test!(
+            0x0000 => SectionIndex::Undefined,
+            0xff00 => SectionIndex::LowProcessorSpecific,
+            0xff1f => SectionIndex::HighProcessorSpecific,
+            0xff20 => SectionIndex::LowEnvironmentSpecific,
+            0xff3f => SectionIndex::HighEnvironmentSpecific,
+            0xfff1 => SectionIndex::Absolute,
+            0xfff2 => SectionIndex::Common,
+            0x0001 => SectionIndex::Ok(1),
+            0x002a => SectionIndex::Ok(42),
+        );
     }
 }
