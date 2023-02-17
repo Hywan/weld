@@ -96,17 +96,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "84a22b9f218b40614adcb3f4ff08b703773ad44fa9423e4e0d346d5db86e4ebc"
 
 [[package]]
-name = "weld-parser"
+name = "weld-object"
 version = "0.1.0"
 dependencies = [
  "bstr",
  "enumflags2",
  "nom",
- "weld-parser-macros",
+ "weld-object-macros",
 ]
 
 [[package]]
-name = "weld-parser-macros"
+name = "weld-object-macros"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",

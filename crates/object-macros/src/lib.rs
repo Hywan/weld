@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse, Attribute, Data, DataEnum, DeriveInput, Generics, Ident};
 
-#[proc_macro_derive(EnumParse)]
+#[proc_macro_derive(Parse)]
 pub fn derive_enum_parse(input: TokenStream) -> TokenStream {
     let derive_input: DeriveInput = parse(input).unwrap();
 
@@ -14,7 +14,7 @@ pub fn derive_enum_parse(input: TokenStream) -> TokenStream {
             fetch_repr(&derive_input.attrs),
         ),
         Data::Struct(_) | Data::Union(_) => {
-            panic!("`EnumParse` cannot be derived onto `struct` or `union`")
+            panic!("`Parse` cannot be derived onto `struct` or `union`")
         }
     }
 }
@@ -33,7 +33,7 @@ fn derive_enum_parse_impl(
             "u8" => "u8",
             "u16" => "u16",
             "u32" => "u32",
-            repr => panic!("`EnumParse` does not handle the `{repr}` representation yet"),
+            repr => panic!("`Parse` does not handle the `{repr}` representation yet"),
         },
         proc_macro2::Span::call_site(),
     );

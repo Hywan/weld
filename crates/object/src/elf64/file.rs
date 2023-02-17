@@ -1,5 +1,5 @@
 use bstr::BStr;
-use weld_parser_macros::EnumParse;
+use weld_object_macros::Parse;
 
 use super::{Address, Program, Section, SectionIndex, SectionType};
 use crate::{combinators::*, BigEndian, Input, LittleEndian, NumberParser, Result};
@@ -162,7 +162,7 @@ impl<'a> File<'a> {
 }
 
 /// Byte order of the file.
-#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Parse, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Endianness {
     // Little endian byte order.
@@ -172,7 +172,7 @@ pub enum Endianness {
 }
 
 /// Elf version.
-#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Parse, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Version {
     // Invalid version.
@@ -182,7 +182,7 @@ pub enum Version {
 }
 
 /// Operating System (OS) Application Binary Interface (ABI).
-#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Parse, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum OsAbi {
     /// [System V](https://en.wikipedia.org/wiki/System_V).
@@ -230,7 +230,7 @@ pub enum OsAbi {
 }
 
 /// Type of the file.
-#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Parse, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
 pub enum FileType {
     /// Unknown.
@@ -246,7 +246,7 @@ pub enum FileType {
 }
 
 /// Architecture.
-#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Parse, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
 pub enum Machine {
     /// No specific instruction set.

@@ -1,5 +1,5 @@
 use enumflags2::{bitflags, BitFlags};
-use weld_parser_macros::EnumParse;
+use weld_object_macros::Parse;
 
 use super::{Address, Alignment, Data, DataType};
 use crate::{combinators::*, Input, NumberParser, Result};
@@ -81,7 +81,7 @@ impl<'a> Program<'a> {
 }
 
 /// Type of program.
-#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Parse, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum ProgramType {
     /// Program header table entry unused.

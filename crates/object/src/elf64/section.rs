@@ -2,7 +2,7 @@ use std::num::NonZeroU64;
 
 use bstr::BStr;
 use enumflags2::{bitflags, BitFlags};
-use weld_parser_macros::EnumParse;
+use weld_object_macros::Parse;
 
 use super::{Address, Alignment, Data};
 use crate::{combinators::*, Input, NumberParser, Result};
@@ -105,7 +105,7 @@ impl<'a> Section<'a> {
 }
 
 /// Section type.
-#[derive(EnumParse, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Parse, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum SectionType {
     /// Mark an unused section header.

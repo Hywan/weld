@@ -1,5 +1,5 @@
 [workspace]
 members = [
-  "crates/parser/",
-  "crates/parser-macros/",
+  "crates/object/",
+  "crates/object-macros/",
 ]
