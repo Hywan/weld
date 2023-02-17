@@ -1,5 +1,7 @@
 [workspace]
 members = [
+  # "crates/bin/",
+  "crates/file/",
   "crates/object/",
   "crates/object-macros/",
 ]
