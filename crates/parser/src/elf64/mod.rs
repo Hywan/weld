@@ -93,9 +93,9 @@ impl Add for Address {
 /// An alignment value.
 ///
 /// It's guaranteed to be a non-zero power of two, encoded in a `u64`.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[repr(transparent)]
-pub struct Alignment(Option<NonZeroU64>);
+pub struct Alignment(pub Option<NonZeroU64>);
 
 impl Alignment {
     pub fn parse<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
@@ -125,8 +125,30 @@ mod tests {
     use nom::error::VerboseError;
 
     use super::*;
+    use crate::BigEndian;
 
     const EXIT_FILE: &'static [u8] = include_bytes!("../../tests/fixtures/exit_elf_amd64");
+
+    #[test]
+    fn test_alignment() {
+        // No alignment.
+        assert_eq!(
+            Alignment::parse::<BigEndian, ()>(&0u64.to_be_bytes()),
+            Ok((&[] as &[u8], Alignment(None)))
+        );
+
+        // Some valid alignment.
+        assert_eq!(
+            Alignment::parse::<BigEndian, ()>(&512u64.to_be_bytes()),
+            Ok((&[] as &[u8], Alignment(Some(NonZeroU64::new(512).unwrap()))))
+        );
+
+        // Some invalid (because not a power of two) alignment
+        assert_eq!(
+            Alignment::parse::<BigEndian, ()>(&513u64.to_be_bytes()),
+            Err(nom::Err::Error(())),
+        );
+    }
 
     #[test]
     fn test_me() {
