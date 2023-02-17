@@ -282,7 +282,7 @@ mod tests {
             ($input:expr => $result:expr) => {{
                 let input: u8 = $input << 4;
                 assert_eq!(
-                    SymbolBinding::parse::<crate::LittleEndian, ()>(&[input]),
+                    SymbolBinding::parse::<crate::BigEndian, ()>(&[input]),
                     Ok((&[input] as &[u8], $result))
                     //    ^~~~~ doesn't consume the input!
                 );
@@ -310,7 +310,7 @@ mod tests {
             ($input:expr => $result:expr) => {{
                 let input: u8 = $input & 0x0f;
                 assert_eq!(
-                    SymbolType::parse::<crate::LittleEndian, ()>(&[input]),
+                    SymbolType::parse::<crate::BigEndian, ()>(&[input]),
                     Ok((&[] as &[u8], $result))
                 );
             }};
