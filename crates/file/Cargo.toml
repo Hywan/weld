@@ -12,8 +12,5 @@ mmap = []
 [dependencies]
 libc = "0.2.139"
 
-[build-dependencies]
-cfg-if = "1.0.0"
-
 [dev-dependencies]
 smol = { workspace = true }

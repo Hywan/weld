@@ -1,4 +1,4 @@
-use cfg_if::cfg_if;
+use std::env;
 
 fn main() {
     #[cfg(feature = "auto")]
@@ -7,14 +7,11 @@ fn main() {
 
 #[allow(unused)]
 fn select_file_picker_feature() {
-    let file_picker_feature = {
-        cfg_if! {
-            if #[cfg(target_family = "unix")] {
-                "mmap"
-            } else {
-                "fs"
-            }
-        }
+    // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
+    let file_picker_feature = match env::var("CARGO_CFG_TARGET_FAMILY") {
+        Ok(family) if family == "unix" => "mmap",
+        // family can be `windows` or `wasm`
+        _ => "fs",
     };
 
     println!(r#"cargo:rustc-cfg=feature="{file_picker_feature}""#);
