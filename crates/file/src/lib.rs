@@ -9,14 +9,19 @@ pub mod mmap;
 #[cfg(feature = "fs")]
 pub mod fs;
 
+/// Define what a file reader should look like.
 pub trait FileReader: Sized {
+    /// The reader should outputs bytes that implements `AsRef<[u8]>`.
     type Bytes: AsRef<[u8]>;
+    /// The reader itself is asynchronous.
     type Reader: Future<Output = Result<Self::Bytes>>;
 
+    /// Open a file.
     fn open<P>(path: P) -> Result<Self>
     where
         P: AsRef<Path>;
 
+    /// Read the entire file content.
     fn read_as_bytes(&mut self) -> Self::Reader;
 }
 
