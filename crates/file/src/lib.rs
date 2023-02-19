@@ -7,10 +7,6 @@ pub trait FileReader: Sized {
     where
         P: AsRef<Path>;
 
-    fn create<P>(path: P) -> Result<Self>
-    where
-        P: AsRef<Path>;
-
     fn read_as_bytes(&mut self) -> Result<Self::Bytes>;
 }
 
@@ -31,13 +27,6 @@ mod file {
             P: AsRef<Path>,
         {
             Ok(Self { inner: fs::File::open(path)? })
-        }
-
-        fn create<P>(path: P) -> Result<Self>
-        where
-            P: AsRef<Path>,
-        {
-            Ok(Self { inner: fs::File::create(path)? })
         }
 
         fn read_as_bytes(&mut self) -> Result<Self::Bytes> {
@@ -63,7 +52,7 @@ mod mmap {
 
     pub struct Mmap<'f> {
         file: fs::File,
-        pointer: *mut c_void,
+        pointer: *const c_void,
         length: usize,
         _phantom: PhantomData<&'f ()>,
     }
@@ -97,9 +86,8 @@ mod mmap {
                 length as usize
             };
 
-            let protections = libc::PROT_READ | libc::PROT_EXEC;
+            let protections = libc::PROT_READ;
             let flags = libc::MAP_SHARED;
-            let alignment = 0;
 
             let pointer = unsafe {
                 let pointer = libc::mmap(
@@ -121,22 +109,30 @@ mod mmap {
             Ok(Self { file, pointer, length, _phantom: PhantomData })
         }
 
-        fn create<P>(path: P) -> Result<Self>
-        where
-            P: AsRef<Path>,
-        {
-            todo!()
-        }
-
         fn read_as_bytes(&mut self) -> Result<Self::Bytes> {
-            Ok(unsafe { slice::from_raw_parts(self.pointer as *mut u8, self.length) })
+            Ok(unsafe { slice::from_raw_parts(self.pointer as *const u8, self.length) })
         }
     }
 
     impl<'f> Drop for Mmap<'f> {
         fn drop(&mut self) {
-            // TODO
+            let alignment = self.pointer as usize % page_size();
+
+            unsafe {
+                assert!(
+                    libc::munmap(
+                        self.pointer.offset(-(alignment as isize)) as *mut _,
+                        self.length as libc::size_t
+                    ) == 0,
+                    "unable to unmap mmpa: {}",
+                    Error::last_os_error()
+                )
+            }
         }
+    }
+
+    fn page_size() -> usize {
+        unsafe { libc::sysconf(libc::_SC_PAGESIZE) as _ }
     }
 }
 
