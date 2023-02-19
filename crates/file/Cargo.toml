@@ -3,5 +3,14 @@ name = "weld-file"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["auto"]
+auto = []
+fs = []
+mmap = []
+
 [dependencies]
 libc = "0.2.139"
+
+[build-dependencies]
+cfg-if = "1.0.0"
