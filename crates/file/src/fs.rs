@@ -1,6 +1,10 @@
 //! Default file reader.
 
-use std::{fs, io::Read};
+use std::{
+    fs,
+    future::{ready, Ready},
+    io::Read,
+};
 
 use super::*;
 
@@ -11,6 +15,7 @@ pub struct File {
 
 impl FileReader for File {
     type Bytes = Vec<u8>;
+    type Reader = Ready<Result<Self::Bytes>>;
 
     fn open<P>(path: P) -> Result<Self>
     where
@@ -19,23 +24,32 @@ impl FileReader for File {
         Ok(Self { inner: fs::File::open(path)? })
     }
 
-    fn read_as_bytes(&mut self) -> Result<Self::Bytes> {
+    fn read_as_bytes(&mut self) -> Self::Reader {
         let mut buffer = Vec::new();
-        self.inner.read_to_end(&mut buffer)?;
 
-        Ok(buffer)
+        if let Err(err) = self.inner.read_to_end(&mut buffer) {
+            ready(Err(err))
+        } else {
+            ready(Ok(buffer))
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use smol::block_on;
+
     use super::*;
 
     #[test]
-    fn test_file() {
-        let mut file = File::open("tests/hello.txt").unwrap();
-        let content = file.read_as_bytes().unwrap();
+    fn test_file() -> Result<()> {
+        block_on(async {
+            let mut file = File::open("tests/hello.txt")?;
+            let content = file.read_as_bytes().await?;
 
-        assert_eq!(content, &b"abcdef"[..]);
+            assert_eq!(content, &b"abcdef"[..]);
+
+            Ok(())
+        })
     }
 }

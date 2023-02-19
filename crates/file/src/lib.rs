@@ -1,4 +1,4 @@
-use std::{io::Result, path::Path};
+use std::{future::Future, io::Result, path::Path};
 
 #[cfg(all(not(feature = "auto"), not(feature = "fs"), not(feature = "mmap")))]
 compile_error!("No feature has been selected, please select at least `auto`");
@@ -11,12 +11,13 @@ pub mod fs;
 
 pub trait FileReader: Sized {
     type Bytes: AsRef<[u8]>;
+    type Reader: Future<Output = Result<Self::Bytes>>;
 
     fn open<P>(path: P) -> Result<Self>
     where
         P: AsRef<Path>;
 
-    fn read_as_bytes(&mut self) -> Result<Self::Bytes>;
+    fn read_as_bytes(&mut self) -> Self::Reader;
 }
 
 /// File picker.
@@ -45,13 +46,19 @@ impl Picker {
 
 #[cfg(test)]
 mod tests {
+    use smol::block_on;
+
     use super::*;
 
     #[test]
-    fn test_picker() {
-        let mut file = Picker::open("tests/hello.txt").unwrap();
-        let content = file.read_as_bytes().unwrap();
+    fn test_picker() -> Result<()> {
+        block_on(async {
+            let mut file = Picker::open("tests/hello.txt")?;
+            let content = file.read_as_bytes().await?;
 
-        assert_eq!(content, &b"abcdef"[..]);
+            assert_eq!(content, &b"abcdef"[..]);
+
+            Ok(())
+        })
     }
 }

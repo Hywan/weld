@@ -3,6 +3,7 @@
 use std::{
     ffi::c_void,
     fs,
+    future::{ready, Ready},
     io::{Error, ErrorKind},
     marker::PhantomData,
     os::fd::AsRawFd,
@@ -21,6 +22,7 @@ pub struct Mmap<'f> {
 
 impl<'f> FileReader for Mmap<'f> {
     type Bytes = &'f [u8];
+    type Reader = Ready<Result<Self::Bytes>>;
 
     fn open<P>(path: P) -> Result<Self>
     where
@@ -66,8 +68,8 @@ impl<'f> FileReader for Mmap<'f> {
         Ok(Self { _file: file, pointer, length, _phantom: PhantomData })
     }
 
-    fn read_as_bytes(&mut self) -> Result<Self::Bytes> {
-        Ok(unsafe { slice::from_raw_parts(self.pointer as *const u8, self.length) })
+    fn read_as_bytes(&mut self) -> Self::Reader {
+        ready(Ok(unsafe { slice::from_raw_parts(self.pointer as *const u8, self.length) }))
     }
 }
 
@@ -95,13 +97,19 @@ fn page_size() -> usize {
 
 #[cfg(test)]
 mod tests {
+    use smol::block_on;
+
     use super::*;
 
     #[test]
-    fn test_mmap() {
-        let mut file = Mmap::open("tests/hello.txt").unwrap();
-        let content = file.read_as_bytes().unwrap();
+    fn test_mmap() -> Result<()> {
+        block_on(async {
+            let mut file = Mmap::open("tests/hello.txt")?;
+            let content = file.read_as_bytes().await?;
 
-        assert_eq!(content, &b"abcdef"[..]);
+            assert_eq!(content, &b"abcdef"[..]);
+
+            Ok(())
+        })
     }
 }
