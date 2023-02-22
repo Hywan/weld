@@ -152,8 +152,7 @@ mod tests {
 
     #[test]
     fn test_me() {
-        let (_remaining, file) = File::parse::<VerboseError<Input>>(EXIT_FILE).unwrap();
-        // dbg!(&remaining);
+        let (remaining, file) = File::parse::<VerboseError<Input>>(EXIT_FILE).unwrap();
         dbg!(&file);
 
         let string_section = file.sections.iter().find(|section| matches!(section, Section { r#type: SectionType::StringTable, name: Some(section_name), .. } if *section_name == ".strtab")).unwrap();

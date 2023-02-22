@@ -64,7 +64,7 @@ impl<'a> File<'a> {
         // `sh` stands for `section_header`.
 
         let (
-            input,
+            _input,
             (
                 version,
                 os_abi,
@@ -157,7 +157,7 @@ impl<'a> File<'a> {
             sections,
         };
 
-        Ok((input, file))
+        Ok((&[], file))
     }
 }
 
