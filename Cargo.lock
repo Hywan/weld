@@ -478,6 +478,8 @@ version = "0.1.0"
 dependencies = [
  "smol",
  "thiserror",
+ "weld-file",
+ "weld-object",
  "weld-scheduler",
 ]
 

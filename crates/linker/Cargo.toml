@@ -6,4 +6,12 @@ edition = "2021"
 [dependencies]
 thiserror = { workspace = true }
 smol = { workspace = true}
+weld-file = { path = "../file", version = "0.1" }
+weld-object = { path = "../object", version = "0.1", default-features = false }
 weld-scheduler = { path = "../scheduler", version = "0.1" }
+
+[features]
+default = ["elf64"]
+
+# Enable the `elf64` format.
+elf64 = ["weld-object/elf64"]
