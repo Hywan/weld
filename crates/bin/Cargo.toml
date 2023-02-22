@@ -1,0 +1,13 @@
+[package]
+name = "weld-bin"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "weld"
+path = "src/main.rs"
+
+[dependencies]
+argh = "0.1.10"
+weld-linker = { path = "../linker", version = "0.1" }
+weld-object = { path = "../object", version = "0.1" }

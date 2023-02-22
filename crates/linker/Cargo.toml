@@ -1,0 +1,9 @@
+[package]
+name = "weld-linker"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror = { workspace = true }
+smol = { workspace = true}
+weld-scheduler = { path = "../scheduler", version = "0.1" }
