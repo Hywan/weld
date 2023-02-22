@@ -24,7 +24,7 @@ impl FileReader for File {
         Ok(Self { inner: fs::File::open(path)? })
     }
 
-    fn read_as_bytes(&mut self) -> Self::Reader {
+    fn read_as_bytes(mut self) -> Self::Reader {
         let mut buffer = Vec::new();
 
         if let Err(err) = self.inner.read_to_end(&mut buffer) {
@@ -44,10 +44,11 @@ mod tests {
     #[test]
     fn test_file() -> Result<()> {
         block_on(async {
-            let mut file = File::open("tests/hello.txt")?;
+            let file = File::open("tests/hello.txt")?;
             let content = file.read_as_bytes().await?;
+            let bytes: &[u8] = content.as_ref();
 
-            assert_eq!(content, &b"abcdef"[..]);
+            assert_eq!(bytes, &b"abcdef"[..]);
 
             Ok(())
         })

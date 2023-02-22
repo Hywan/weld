@@ -5,7 +5,6 @@ use std::{
     fs,
     future::{ready, Ready},
     io::{Error, ErrorKind},
-    marker::PhantomData,
     os::fd::AsRawFd,
     ptr, slice,
 };
@@ -13,15 +12,12 @@ use std::{
 use super::*;
 
 /// File reader based on `mmap(2)`.
-pub struct Mmap<'f> {
-    _file: fs::File,
-    pointer: *const c_void,
-    length: usize,
-    _phantom: PhantomData<&'f ()>,
+pub struct Mmap {
+    content: MmapContent,
 }
 
-impl<'f> FileReader for Mmap<'f> {
-    type Bytes = &'f [u8];
+impl FileReader for Mmap {
+    type Bytes = MmapContent;
     type Reader = Ready<Result<Self::Bytes>>;
 
     fn open<P>(path: P) -> Result<Self>
@@ -65,15 +61,27 @@ impl<'f> FileReader for Mmap<'f> {
             pointer
         };
 
-        Ok(Self { _file: file, pointer, length, _phantom: PhantomData })
+        Ok(Self { content: MmapContent { _file: file, pointer, length } })
     }
 
-    fn read_as_bytes(&mut self) -> Self::Reader {
-        ready(Ok(unsafe { slice::from_raw_parts(self.pointer as *const u8, self.length) }))
+    fn read_as_bytes(self) -> Self::Reader {
+        ready(Ok(self.content))
     }
 }
 
-impl<'f> Drop for Mmap<'f> {
+pub struct MmapContent {
+    _file: fs::File,
+    pointer: *const c_void,
+    length: usize,
+}
+
+impl AsRef<[u8]> for MmapContent {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self.pointer as *const u8, self.length) }
+    }
+}
+
+impl Drop for MmapContent {
     fn drop(&mut self) {
         let alignment = self.pointer as usize % page_size();
 
@@ -91,6 +99,9 @@ impl<'f> Drop for Mmap<'f> {
     }
 }
 
+// SAFETY: `MmapContent.pointer`'s lifetime is tied to `MmapContent.file`.
+unsafe impl Send for MmapContent {}
+
 fn page_size() -> usize {
     unsafe { libc::sysconf(libc::_SC_PAGESIZE) as _ }
 }
@@ -104,10 +115,11 @@ mod tests {
     #[test]
     fn test_mmap() -> Result<()> {
         block_on(async {
-            let mut file = Mmap::open("tests/hello.txt")?;
+            let file = Mmap::open("tests/hello.txt")?;
             let content = file.read_as_bytes().await?;
+            let bytes: &[u8] = content.as_ref();
 
-            assert_eq!(content, &b"abcdef"[..]);
+            assert_eq!(bytes, &b"abcdef"[..]);
 
             Ok(())
         })

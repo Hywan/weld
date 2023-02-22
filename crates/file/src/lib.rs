@@ -14,7 +14,7 @@ pub trait FileReader: Sized {
     /// The reader should outputs bytes that implements `AsRef<[u8]>`.
     type Bytes: AsRef<[u8]>;
     /// The reader itself is asynchronous.
-    type Reader: Future<Output = Result<Self::Bytes>>;
+    type Reader: Future<Output = Result<Self::Bytes>> + Send;
 
     /// Open a file.
     fn open<P>(path: P) -> Result<Self>
@@ -22,7 +22,7 @@ pub trait FileReader: Sized {
         P: AsRef<Path>;
 
     /// Read the entire file content.
-    fn read_as_bytes(&mut self) -> Self::Reader;
+    fn read_as_bytes(self) -> Self::Reader;
 }
 
 /// File picker.
@@ -41,7 +41,7 @@ impl Picker {
     }
 
     #[cfg(feature = "mmap")]
-    pub fn open<'f, P>(path: P) -> Result<mmap::Mmap<'f>>
+    pub fn open<P>(path: P) -> Result<mmap::Mmap>
     where
         P: AsRef<Path>,
     {
@@ -58,10 +58,11 @@ mod tests {
     #[test]
     fn test_picker() -> Result<()> {
         block_on(async {
-            let mut file = Picker::open("tests/hello.txt")?;
+            let file = Picker::open("tests/hello.txt")?;
             let content = file.read_as_bytes().await?;
+            let bytes: &[u8] = content.as_ref();
 
-            assert_eq!(content, &b"abcdef"[..]);
+            assert_eq!(bytes, &b"abcdef"[..]);
 
             Ok(())
         })
