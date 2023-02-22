@@ -4,7 +4,7 @@ members = [
   "crates/file/",
   "crates/object/",
   "crates/object-macros/",
+  "crates/scheduler/",
 ]
 
-[workspace.dependencies]
-smol = "1.3.0"
+[workspace.dependencies]smol = "1.3.0"
