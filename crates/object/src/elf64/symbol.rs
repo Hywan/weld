@@ -216,7 +216,8 @@ where
                 // Ensure we have parsed the correct amount of bytes.
                 if let Some(entity_size) = self.entity_size {
                     let offset = self.input.offset(next_input);
-                    let entity_size: usize = u64::from(entity_size)
+                    let entity_size: usize = entity_size
+                        .get()
                         .try_into()
                         .expect("Failed to cast the entity size from `u64` to `usize`");
 

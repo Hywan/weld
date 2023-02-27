@@ -86,7 +86,7 @@ where
     /// Threads are creating eargerly. They will be ready when the constructor
     /// returns.
     pub fn new(pool_size: NonZeroUsize) -> Result<Self, io::Error> {
-        let pool_size: usize = pool_size.into();
+        let pool_size = pool_size.get();
         let mut workers = Vec::with_capacity(pool_size);
 
         let (sender, receiver) = unbounded::<Job<T>>();
