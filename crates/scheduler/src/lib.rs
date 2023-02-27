@@ -52,6 +52,7 @@
 //! ```
 
 use std::{
+    cmp,
     future::Future,
     io,
     num::NonZeroUsize,
@@ -81,12 +82,28 @@ impl<'e, T> ThreadPool<'e, T>
 where
     T: Send + 'static,
 {
-    /// Create a new pool of threads, of size `pool_size`.
+    /// Create a new pool of threads, of maximum size `desired_pool_size`.
     ///
     /// Threads are creating eargerly. They will be ready when the constructor
     /// returns.
-    pub fn new(pool_size: NonZeroUsize) -> Result<Self, io::Error> {
-        let pool_size = pool_size.get();
+    ///
+    /// Why `desired_pool_size` rather than an “exact `pool_size`”? Because
+    /// parallism is a resource. A given machine provides a certain capacity
+    /// for parallelism, i.e. a bound on the number of computations
+    /// it can perform simultaneously. This number often corresponds to the
+    /// amount of CPUs a computer has, but it may diverge in various cases.
+    ///
+    /// Host environments such as VMs or container orchestrators may want to
+    /// restrict the amount of parallelism made available to programs in
+    /// them. This is often done to limit the potential impact of
+    /// (unintentionally) resource-intensive programs on other programs
+    /// running on the same machine.
+    ///
+    /// Thus, `desired_pool_size` is clamped between 1 and
+    /// [`std::thread::available_parallelism`].
+    pub fn new(desired_pool_size: NonZeroUsize) -> Result<Self, io::Error> {
+        let pool_size = cmp::min(desired_pool_size, thread::available_parallelism()?).get();
+
         let mut workers = Vec::with_capacity(pool_size);
 
         let (sender, receiver) = unbounded::<Job<T>>();
