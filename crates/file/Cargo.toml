@@ -13,4 +13,4 @@ mmap = []
 libc = "0.2.139"
 
 [dev-dependencies]
-smol = { workspace = true }
+futures-lite = { workspace = true }

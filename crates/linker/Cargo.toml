@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-channel = { workspace = true }
+futures-lite = { workspace = true }
 thiserror = { workspace = true }
-smol = { workspace = true}
 weld-file = { path = "../file", version = "0.1" }
 weld-object = { path = "../object", version = "0.1", default-features = false }
 weld-scheduler = { path = "../scheduler", version = "0.1" }

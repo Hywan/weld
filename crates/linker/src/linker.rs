@@ -1,6 +1,7 @@
 use std::{io, num::NonZeroUsize};
 
-use smol::{block_on, channel::unbounded};
+use async_channel::unbounded;
+use futures_lite::future::block_on;
 use thiserror::Error;
 use weld_file::{FileReader, Picker as FilePicker};
 use weld_scheduler::ThreadPool;

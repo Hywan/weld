@@ -51,7 +51,7 @@ impl Picker {
 
 #[cfg(test)]
 mod tests {
-    use smol::block_on;
+    use futures_lite::future::block_on;
 
     use super::*;
 

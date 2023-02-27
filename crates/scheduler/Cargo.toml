@@ -4,4 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-smol = { workspace = true }
+async-channel = { workspace = true }
+async-executor = { workspace = true }
+futures-lite = { workspace = true }
+
+[dev-dependencies]
+async-io = { workspace = true }
+fastrand = "1.9.0"

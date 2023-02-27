@@ -60,11 +60,9 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use smol::{
-    block_on,
-    channel::{unbounded, Receiver, SendError, Sender},
-    Executor,
-};
+use async_channel::{unbounded, Receiver, SendError, Sender};
+use async_executor::Executor;
+use futures_lite::future::block_on;
 
 /// A thread pool allows to execute `Future`s on multiple threads automatically.
 ///
@@ -150,5 +148,54 @@ impl Worker {
             })?;
 
         Ok(Self { _thread_handle: thread_handle })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use async_io::Timer;
+
+    use super::*;
+
+    #[test]
+    fn basic_thread_pool() -> Result<(), io::Error> {
+        let desired_pool_size = NonZeroUsize::new(4).unwrap();
+        let thread_pool = ThreadPool::new(desired_pool_size)?;
+
+        let (sender, receiver) = unbounded::<u32>();
+
+        let interval = 0..1000;
+
+        for nth in interval.clone() {
+            let sender = sender.clone();
+
+            thread_pool
+                .execute(async move {
+                    let work = async move {
+                        Timer::after(Duration::from_micros(fastrand::u64(1..10_000))).await;
+
+                        nth
+                    };
+
+                    sender.send(work.await).await.unwrap();
+                })
+                .unwrap();
+        }
+
+        drop(sender);
+
+        block_on(async {
+            let mut total = 0;
+
+            while let Ok(received) = receiver.recv().await {
+                total += received;
+            }
+
+            assert_eq!(total, interval.sum());
+
+            Ok(())
+        })
     }
 }
