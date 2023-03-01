@@ -13,6 +13,8 @@ pub enum DataType {
     StringTable,
     /// `Data` represents a symbol table.
     SymbolTable,
+    /// `Data` represents program data.
+    ProgramData,
     /// `Data` has unspecified data.
     Unspecified,
 }
@@ -22,6 +24,7 @@ impl From<SectionType> for DataType {
         match value {
             SectionType::StringTable => Self::StringTable,
             SectionType::SymbolTable => Self::SymbolTable,
+            SectionType::ProgramData => Self::ProgramData,
             _ => Self::Unspecified,
         }
     }
@@ -96,7 +99,78 @@ impl<'a> Data<'a> {
 impl<'a> fmt::Debug for Data<'a> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.r#type {
-            DataType::Unspecified => {
+            DataType::StringTable => formatter.write_fmt(format_args!(
+                "{:?} Data(..), interpreted: {:#?}",
+                self.r#type,
+                self.inner.split(|c| *c == 0x00).map(BStr::new).collect::<Vec<_>>()
+            )),
+
+            DataType::SymbolTable => formatter.write_fmt(format_args!(
+                "{:?} Data(..), interpreted: {:#?}",
+                self.r#type,
+                self.symbols::<VerboseError<Input>>().unwrap().collect::<Vec<_>>()
+            )),
+
+            #[cfg(feature = "debug")]
+            DataType::ProgramData => {
+                #[cfg(feature = "debug-x86")]
+                {
+                    use iced_x86::{Decoder, DecoderOptions, FastFormatter, Instruction};
+
+                    formatter
+                        .write_fmt(format_args!("{:?} Data(..), interpreted:", self.r#type))?;
+
+                    let mut decoder = Decoder::new(64, self.inner, DecoderOptions::NONE);
+                    let mut x86_formatter = FastFormatter::new();
+
+                    {
+                        let options = x86_formatter.options_mut();
+                        options.set_space_after_operand_separator(true);
+                        options.set_rip_relative_addresses(true);
+                        options.set_show_symbol_address(true);
+                        options.set_uppercase_hex(false);
+                        options.set_use_hex_prefix(true);
+                    }
+
+                    let mut output = String::new();
+                    let mut instruction = Instruction::default();
+
+                    while decoder.can_decode() {
+                        decoder.decode_out(&mut instruction);
+                        output.clear();
+                        x86_formatter.format(&instruction, &mut output);
+                        formatter.write_fmt(format_args!("\n{:016x} ", instruction.ip()))?;
+
+                        let start_index = instruction.ip() as usize;
+                        let instr_bytes = &self.inner[start_index..start_index + instruction.len()];
+
+                        for bytes in instr_bytes.iter() {
+                            formatter.write_fmt(format_args!("{bytes:02x}"))?;
+                        }
+
+                        if instr_bytes.len() < 10 {
+                            for _ in 0..10 - instr_bytes.len() {
+                                formatter.write_fmt(format_args!("  "))?;
+                            }
+                        }
+
+                        formatter.write_fmt(format_args!(" {output}"))?;
+                    }
+                }
+
+                #[cfg(not(feature = "debug-x86"))]
+                {
+                    formatter.write_fmt(format_args!(
+                        "{:?} Data(..), cannot interpret them",
+                        self.r#type,
+                    ))?;
+                }
+
+                Ok(())
+            }
+
+            #[cfg_attr(feature = "debug", allow(unreachable_patterns))]
+            DataType::ProgramData | DataType::Unspecified => {
                 let len = self.inner.len();
 
                 if len > 10 {
@@ -113,18 +187,6 @@ impl<'a> fmt::Debug for Data<'a> {
                     ))
                 }
             }
-
-            DataType::StringTable => formatter.write_fmt(format_args!(
-                "{:?} Data(..), interpreted: {:#?}",
-                self.r#type,
-                self.inner.split(|c| *c == 0x00).map(BStr::new).collect::<Vec<_>>()
-            )),
-
-            DataType::SymbolTable => formatter.write_fmt(format_args!(
-                "{:?} Data(..), interpreted: {:#?}",
-                self.r#type,
-                self.symbols::<VerboseError<Input>>().unwrap().collect::<Vec<_>>()
-            )),
         }
     }
 }
