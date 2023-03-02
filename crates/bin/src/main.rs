@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use argh::FromArgs;
-use weld_linker::{Configuration, Error};
+use weld_linker::{target::Triple, Configuration, Error};
 
 fn default_output_file() -> PathBuf {
     PathBuf::from("a.out")
@@ -12,6 +12,10 @@ fn default_output_file() -> PathBuf {
 /// instance, it combines several object files and libraries, resolves
 /// references, and produces an output file.
 struct Weld {
+    /// target triple.
+    #[argh(option, short = 't', default = "Triple::host()")]
+    target: Triple,
+
     /// input files.
     #[argh(positional)]
     input_files: Vec<PathBuf>,
@@ -25,7 +29,7 @@ struct Weld {
 fn main() -> Result<(), Error> {
     let args: Weld = argh::from_env();
 
-    let linker_configuration = Configuration::new(args.input_files, args.output_file);
+    let linker_configuration = Configuration::new(args.target, args.input_files, args.output_file);
 
     let linker = linker_configuration.linker();
 

@@ -1,12 +1,8 @@
-use std::{io, num::NonZeroUsize};
-
-use async_channel::unbounded;
-use futures_lite::future::block_on;
 use thiserror::Error;
-use weld_file::{FileReader, Picker as FilePicker};
-use weld_scheduler::ThreadPool;
 
-use crate::Configuration;
+#[allow(unused)]
+use crate::target::BinaryFormat;
+use crate::{target::Triple, Configuration};
 
 #[derive(Debug)]
 pub struct Linker {
@@ -15,14 +11,15 @@ pub struct Linker {
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("thread pool has failed: {0}")]
-    ThreadPool(io::Error),
+    #[error("no input file given")]
+    NoInputFile,
 
-    #[error("thread pool's sender channel has been closed prematuraly")]
-    ThreadPoolChannelClosed,
+    #[error("unsupported target triple `{0:?}`")]
+    UnsupportedTarget(Triple),
 
-    #[error("parsing an object has failed: {0}")]
-    ObjectParser(weld_object::errors::Error<()>),
+    #[cfg(feature = "elf64")]
+    #[error("elf64 error: {0}")]
+    Elf64(#[from] crate::elf64::Error),
 }
 
 impl Linker {
@@ -31,45 +28,15 @@ impl Linker {
     }
 
     pub fn link(self) -> Result<(), Error> {
-        // SAFETY: It's OK to `unwrap` as 4 is not 0.
-        let thread_pool =
-            ThreadPool::new(NonZeroUsize::new(4).unwrap()).map_err(Error::ThreadPool)?;
-
-        let (sender, receiver) = unbounded::<Result<(), Error>>();
-
-        for input_file_name in self.configuration.input_files {
-            let sender = sender.clone();
-
-            thread_pool
-                .execute(async move {
-                    let work = async move {
-                        dbg!(&input_file_name);
-                        let input_file = FilePicker::open(input_file_name).unwrap();
-
-                        let file_content = input_file.read_as_bytes().await.unwrap();
-                        let bytes: &[u8] = file_content.as_ref();
-                        dbg!(weld_object::elf64::File::parse(bytes).map_err(Error::ObjectParser)?);
-                        dbg!(std::thread::current().name());
-
-                        Ok(())
-                    };
-
-                    sender
-                        .send(work.await)
-                        .await
-                        .expect("work' sender channel has been closed prematuraly");
-                })
-                .map_err(|_| Error::ThreadPoolChannelClosed)?;
+        if self.configuration.input_files.is_empty() {
+            return Err(Error::NoInputFile);
         }
 
-        drop(sender);
+        Ok(match self.configuration.target.binary_format {
+            #[cfg(feature = "elf64")]
+            BinaryFormat::Elf => crate::elf64::link(self.configuration)?,
 
-        block_on(async {
-            while let Ok(received) = receiver.recv().await {
-                dbg!(&received);
-            }
-
-            Ok(())
+            _ => return Err(Error::UnsupportedTarget(self.configuration.target)),
         })
     }
 }
