@@ -9,5 +9,14 @@ path = "src/main.rs"
 
 [dependencies]
 argh = "0.1.10"
+miette = { workspace = true }
+thiserror = { workspace = true }
+weld-errors = { path = "../errors", version = "0.1" }
 weld-linker = { path = "../linker", version = "0.1" }
 weld-object = { path = "../object", version = "0.1" }
+
+[features]
+default = ["fancy-errors"]
+
+# Get fancy errors, with colors, links and all!
+fancy-errors = ["miette/fancy"]
