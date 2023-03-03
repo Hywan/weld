@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/bin/",
+  "crates/errors/",
   "crates/file/",
   "crates/linker/",
   "crates/object/",
