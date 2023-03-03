@@ -10,13 +10,13 @@ use crate::Configuration;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("thread pool has failed: {0}")]
+    #[error("I was not able to create the thread pool: {0}.")]
     ThreadPool(io::Error),
 
-    #[error("thread pool's sender channel has been closed prematuraly")]
+    #[error("Hmm, it seems like the thread pool's sender channel has been closed prematuraly")]
     ThreadPoolChannelClosed,
 
-    #[error("parsing an object has failed: {0}")]
+    #[error("I was not able to parse an object file correctly: {0}")]
     ObjectParser(weld_object::errors::Error<()>),
 }
 

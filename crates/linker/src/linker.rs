@@ -1,3 +1,4 @@
+use miette::{Diagnostic, Result};
 use thiserror::Error;
 
 #[allow(unused)]
@@ -9,16 +10,25 @@ pub struct Linker {
     configuration: Configuration,
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Diagnostic, Error)]
 pub enum Error {
-    #[error("no input file given")]
+    #[error("I'm happy to link objects, but no objects was given")]
+    #[diagnostic(
+        code(E002),
+        help("Maybe try adding input object files with `weld <input_files> …`")
+    )]
     NoInputFile,
 
-    #[error("unsupported target triple `{0:?}`")]
-    UnsupportedTarget(Triple),
+    #[error("I understand the `{0}` target triple, but I unfortunately don't support its binary format, `{}`.", .0.binary_format)]
+    #[diagnostic(
+        code(E003),
+        help("Maybe try another target with `weld --target <target>`?"),
+        url(docsrs)
+    )]
+    UnsupportedBinaryFormat(Triple),
 
     #[cfg(feature = "elf64")]
-    #[error("elf64 error: {0}")]
+    #[error("I have received an error from the `elf64` driver:\n{0}")]
     Elf64(#[from] crate::elf64::Error),
 }
 
@@ -36,7 +46,7 @@ impl Linker {
             #[cfg(feature = "elf64")]
             BinaryFormat::Elf => crate::elf64::link(self.configuration)?,
 
-            _ => return Err(Error::UnsupportedTarget(self.configuration.target)),
+            _ => return Err(Error::UnsupportedBinaryFormat(self.configuration.target)),
         })
     }
 }

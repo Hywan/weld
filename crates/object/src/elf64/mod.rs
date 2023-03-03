@@ -127,7 +127,7 @@ mod tests {
     use super::*;
     use crate::BigEndian;
 
-    const EXIT_FILE: &'static [u8] = include_bytes!("../../tests/fixtures/exit_elf_amd64");
+    const EXIT_FILE: &'static [u8] = include_bytes!("../../tests/fixtures/exit_elf_amd64.o");
 
     #[test]
     fn test_alignment() {

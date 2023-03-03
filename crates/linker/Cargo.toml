@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 async-channel = { workspace = true }
 futures-lite = { workspace = true }
+miette = { workspace = true }
 target-lexicon = "0.12.6"
 thiserror = { workspace = true }
 weld-file = { path = "../file", version = "0.1" }

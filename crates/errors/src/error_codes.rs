@@ -35,4 +35,4 @@ macro_rules! register_diagnostics {
     };
 }
 
-register_diagnostics!(E000, E001, E002);
+register_diagnostics!(E000, E001, E002, E003);
