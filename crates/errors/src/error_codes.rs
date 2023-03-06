@@ -2,7 +2,7 @@ macro_rules! register_diagnostics {
     ( $( $error_code:ident ),* $(,)* ) => {
         /// Hold all error diagnostic by error code.
         ///
-        /// It's an array of tuple where the first item is the error code, and the second
+        /// It's an array of tuples where the first item is the error code, and the second
         /// item is the diagnostic.
         ///
         /// It's best to query this array by using [`crate::Error::explain`].
