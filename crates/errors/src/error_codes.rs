@@ -1,6 +1,12 @@
 macro_rules! register_diagnostics {
     ( $( $error_code:ident ),* $(,)* ) => {
-        /// An array of `(error_code, diagnostic)`.
+        /// Hold all error diagnostic by error code.
+        ///
+        /// It's an array of tuple where the first item is the error code, and the second
+        /// item is the diagnostic.
+        ///
+        /// It's best to query this array by using [`crate::Error::explain`].
+        #[cfg(feature = "diagnostics")]
         pub static DIAGNOSTICS: &[(&str, &str)] = &[
             $(
                 (
@@ -8,6 +14,11 @@ macro_rules! register_diagnostics {
                     concat!(
                         // Header
                         "\n",
+
+                        // Title
+                        "# Error `",
+                        stringify!($error_code),
+                        "`\n\n",
 
                         // Body
                         include_str!(concat!("./error_codes/", stringify!($error_code), ".md")),
@@ -19,7 +30,6 @@ macro_rules! register_diagnostics {
             ),*
         ];
 
-        #[cfg(doc)]
         /// This type exists only for documentation purposes. It doesn't exist in the code otherwise.
         ///
         /// This type has 2 goals:

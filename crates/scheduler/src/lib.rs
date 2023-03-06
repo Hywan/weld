@@ -51,6 +51,16 @@
 //! └──────────────────────────────────────────────────────────┘
 //! ```
 
+#![deny(unused)]
+#![deny(warnings)]
+#![deny(missing_docs)]
+#![deny(clippy::all)]
+#![deny(rustdoc::broken_intra_doc_links)]
+#![deny(rustdoc::private_intra_doc_links)]
+#![deny(rustdoc::missing_crate_level_docs)]
+#![deny(rustdoc::invalid_codeblock_attributes)]
+#![deny(rustdoc::invalid_rust_codeblocks)]
+
 use std::{
     cmp,
     future::Future,
@@ -70,6 +80,59 @@ use futures_lite::future::block_on;
 /// executed, they are just sent where there is idleness. In the current design,
 /// _idle_ means a thread that has an idle asynchronous executor, either because
 /// it has no `Future` running at all, or because a `Future` is pending.
+///
+/// # Example
+///
+/// ```rust
+/// use std::{num::NonZeroUsize, time::Duration};
+///
+/// use async_channel::unbounded;
+/// use async_io::Timer;
+/// use futures_lite::future::block_on;
+/// use weld_scheduler::ThreadPool;
+///
+/// # fn main() {
+/// let desired_pool_size = NonZeroUsize::new(4).unwrap();
+/// let thread_pool = ThreadPool::new(desired_pool_size).unwrap();
+///
+/// // Create a channel to exchange data between the workers and the outside world.
+/// let (sender, receiver) = unbounded::<u32>();
+///
+/// // Let's execute 10 tasks.
+/// for nth in 0..10 {
+///     let sender = sender.clone();
+///
+///     thread_pool
+///         .execute(async move {
+///             let work = async move {
+///                 Timer::after(Duration::from_micros(fastrand::u64(
+///                     1..100,
+///                 )))
+///                 .await;
+///
+///                 nth
+///             };
+///
+///             sender.send(work.await).await.unwrap();
+///         })
+///         .unwrap();
+/// }
+///
+/// // We don't need the original `sender`.
+/// drop(sender);
+///
+/// // And now, let's receive all data from the workers.
+/// block_on(async {
+///     let mut total = 0;
+///
+///     while let Ok(received) = receiver.recv().await {
+///         total += received;
+///     }
+///
+///     assert_eq!(total, (0..10).sum());
+/// });
+/// # }
+/// ```
 pub struct ThreadPool<'e, T> {
     _workers: Vec<Worker>,
     executor: Executor<'e>,

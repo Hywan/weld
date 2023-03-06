@@ -1,20 +1,24 @@
+use miette::InstallError;
 #[cfg(feature = "fancy-errors")]
 use miette::{set_hook, MietteHandlerOpts};
-use miette::{Diagnostic, InstallError, Result};
-use thiserror::Error;
-use weld_errors::Error as WeldError;
+use weld_errors::{error, Error as WeldError, Result};
 
-#[derive(Error, Diagnostic, Debug)]
-pub(crate) enum Error {
-    #[error("The argument `{0}` contains invalid Unicode data.")]
-    InvalidArgumentEncoding(String),
+error! {
+    pub(crate) enum Error {
+        #[message = "One of the provided argument contains invalid Unicode data."]
+        #[formatted_message("The argument `{0}` contains invalid Unicode data.")]
+        #[help = "?"]
+        InvalidArgumentEncoding(String),
 
-    #[error("The program name is missing from the command-line.")]
-    ProgramNameIsMissing,
+        #[message = "The program name is missing from the command-line."]
+        #[help = "?"]
+        ProgramNameIsMissing,
 
-    #[error("I was not able to read the command-line properly:\n{0}")]
-    #[diagnostic(code(E001), help("See the command-line usage with `weld --help`."))]
-    CommandLine(String),
+        #[code = E001]
+        #[message = "I was not able to read the command-line propery"]
+        #[help = "See the command-line usage with `weld --help`."]
+        CommandLine(String),
+    }
 }
 
 impl Error {

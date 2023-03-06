@@ -6,3 +6,9 @@ edition = "2021"
 [dependencies]
 miette = { workspace = true }
 thiserror = { workspace = true }
+
+[features]
+default = []
+
+# Enable the diagnostics API.
+diagnostics = []

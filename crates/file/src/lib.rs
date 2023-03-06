@@ -1,3 +1,15 @@
+//! `weld_file` is a thin crate to manipulate files.
+
+#![deny(unused)]
+#![deny(warnings)]
+#![deny(missing_docs)]
+#![deny(clippy::all)]
+#![deny(rustdoc::broken_intra_doc_links)]
+#![deny(rustdoc::private_intra_doc_links)]
+#![deny(rustdoc::missing_crate_level_docs)]
+#![deny(rustdoc::invalid_codeblock_attributes)]
+#![deny(rustdoc::invalid_rust_codeblocks)]
+
 use std::{future::Future, io::Result, path::Path};
 
 #[cfg(all(not(feature = "auto"), not(feature = "fs"), not(feature = "mmap")))]
@@ -32,6 +44,7 @@ pub trait FileReader: Sized {
 pub struct Picker;
 
 impl Picker {
+    /// Open a file by using [`fs::File`].
     #[cfg(feature = "fs")]
     pub fn open<P>(path: P) -> Result<fs::File>
     where
@@ -40,6 +53,7 @@ impl Picker {
         fs::File::open(path)
     }
 
+    /// Open a file by using [`mmap::Mmap`].
     #[cfg(feature = "mmap")]
     pub fn open<P>(path: P) -> Result<mmap::Mmap>
     where

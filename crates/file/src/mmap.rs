@@ -69,6 +69,7 @@ impl FileReader for Mmap {
     }
 }
 
+/// Represents the content read from a [`Mmap`].
 pub struct MmapContent {
     _file: fs::File,
     pointer: *const c_void,

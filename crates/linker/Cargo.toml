@@ -9,6 +9,7 @@ futures-lite = { workspace = true }
 miette = { workspace = true }
 target-lexicon = "0.12.6"
 thiserror = { workspace = true }
+weld-errors = { path = "../errors", version = "0.1" }
 weld-file = { path = "../file", version = "0.1" }
 weld-object = { path = "../object", version = "0.1", default-features = false }
 weld-scheduler = { path = "../scheduler", version = "0.1" }

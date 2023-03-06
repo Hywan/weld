@@ -684,6 +684,7 @@ dependencies = [
  "miette",
  "target-lexicon",
  "thiserror",
+ "weld-errors",
  "weld-file",
  "weld-object",
  "weld-scheduler",

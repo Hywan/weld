@@ -2,22 +2,30 @@ use std::{io, num::NonZeroUsize};
 
 use async_channel::unbounded;
 use futures_lite::future::block_on;
-use thiserror::Error;
+use weld_errors::error;
 use weld_file::{FileReader, Picker as FilePicker};
 use weld_scheduler::ThreadPool;
 
 use crate::Configuration;
 
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("I was not able to create the thread pool: {0}.")]
-    ThreadPool(io::Error),
+error! {
+    #[doc = "Elf64 errors."]
+    pub enum Error {
+        #[message = "I was not able to create the thread pool."]
+        #[formatted_message("I was not able to create the thread pool: {0}.")]
+        #[help = "?"]
+        ThreadPool(io::Error),
 
-    #[error("Hmm, it seems like the thread pool's sender channel has been closed prematuraly")]
-    ThreadPoolChannelClosed,
+        #[message = "Hmm, it seems like the thread pool's sender channel has been closed prematuraly."]
+        #[help = "?"]
+        ThreadPoolChannelClosed,
 
-    #[error("I was not able to parse an object file correctly: {0}")]
-    ObjectParser(weld_object::errors::Error<()>),
+        #[code = E004]
+        #[message = "I was not able to parse an object file correctly."]
+        #[formatted_message("I was not able to parse an object file correctly: {0}")]
+        #[help = "?"]
+        ObjectParser(weld_object::errors::Error<()>),
+    }
 }
 
 pub(crate) fn link(configuration: Configuration) -> Result<(), Error> {
