@@ -45,7 +45,7 @@ pub(crate) fn link(configuration: Configuration) -> Result<(), Error> {
 
                     let file_content = input_file.read_as_bytes().await.unwrap();
                     let bytes: &[u8] = file_content.as_ref();
-                    dbg!(weld_object::elf64::File::parse(bytes).map_err(Error::ObjectParser)?);
+                    dbg!(weld_object::elf64::File::read(bytes).map_err(Error::ObjectParser)?);
                     dbg!(std::thread::current().name());
 
                     Ok(())

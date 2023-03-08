@@ -1,8 +1,8 @@
 use enumflags2::{bitflags, BitFlags};
-use weld_object_macros::Parse;
+use weld_object_macros::Read;
 
 use super::{Address, Alignment, Data, DataType};
-use crate::{combinators::*, Input, NumberParser, Result};
+use crate::{combinators::*, Input, Number, Result};
 
 /// Program.
 #[derive(Debug)]
@@ -31,9 +31,9 @@ pub struct Program<'a> {
 }
 
 impl<'a> Program<'a> {
-    pub fn parse<N, E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
+    pub fn read<N, E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
     where
-        N: NumberParser<'a, E>,
+        N: Number<'a, E>,
         E: ParseError<Input<'a>>,
     {
         let (
@@ -49,14 +49,14 @@ impl<'a> Program<'a> {
                 alignment,
             ),
         ) = tuple((
-            ProgramType::parse::<N, _>,
-            ProgramFlag::parse_bits::<N, _>,
-            Address::parse::<N, _>,
-            Address::parse::<N, _>,
-            Address::maybe_parse::<N, _>,
-            N::u64,
-            N::u64,
-            Alignment::parse::<N, _>,
+            ProgramType::read::<N, _>,
+            ProgramFlag::read_bits::<N, _>,
+            Address::read::<N, _>,
+            Address::read::<N, _>,
+            Address::maybe_read::<N, _>,
+            N::read_u64,
+            N::read_u64,
+            Alignment::read::<N, _>,
         ))(input)?;
 
         let program_header = Self {
@@ -81,7 +81,7 @@ impl<'a> Program<'a> {
 }
 
 /// Type of program.
-#[derive(Parse, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Read, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum ProgramType {
     /// Program header table entry unused.
@@ -116,12 +116,12 @@ pub enum ProgramFlag {
 pub type ProgramFlags = BitFlags<ProgramFlag>;
 
 impl ProgramFlag {
-    pub fn parse_bits<'a, N, E>(input: Input<'a>) -> Result<ProgramFlags, E>
+    pub fn read_bits<'a, N, E>(input: Input<'a>) -> Result<ProgramFlags, E>
     where
-        N: NumberParser<'a, E>,
+        N: Number<'a, E>,
         E: ParseError<Input<'a>>,
     {
-        let (input, flags) = N::u32(input)?;
+        let (input, flags) = N::read_u32(input)?;
         let flags = ProgramFlags::from_bits(flags)
             .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
 

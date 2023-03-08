@@ -1,8 +1,8 @@
 use bstr::BStr;
-use weld_object_macros::Parse;
+use weld_object_macros::Read;
 
 use super::{Address, Program, Section, SectionIndex, SectionType};
-use crate::{combinators::*, BigEndian, Input, LittleEndian, NumberParser, Result};
+use crate::{combinators::*, BigEndian, Input, LittleEndian, Number, Result};
 
 /// Object file.
 #[derive(Debug)]
@@ -31,32 +31,32 @@ impl<'a> File<'a> {
     const MAGIC: &'static [u8; 4] = &[0x7f, b'E', b'L', b'F'];
     const ELF64: &'static [u8; 1] = &[0x2];
 
-    pub fn parse<E>(input: Input<'a>) -> Result<Self, E>
+    pub fn read<E>(input: Input<'a>) -> Result<Self, E>
     where
         E: ParseError<Input<'a>>,
     {
         let file = input;
 
         let (input, (_magic, _class, endianness)) =
-            tuple((tag(Self::MAGIC), tag(Self::ELF64), Endianness::parse::<LittleEndian, _>))(
+            tuple((tag(Self::MAGIC), tag(Self::ELF64), Endianness::read::<LittleEndian, _>))(
                 input,
             )?;
 
         match endianness {
-            Endianness::Big => Self::parse_with_endianness::<BigEndian, _>(file, input, endianness),
+            Endianness::Big => Self::read_with_endianness::<BigEndian, _>(file, input, endianness),
             Endianness::Little => {
-                Self::parse_with_endianness::<LittleEndian, _>(file, input, endianness)
+                Self::read_with_endianness::<LittleEndian, _>(file, input, endianness)
             }
         }
     }
 
-    fn parse_with_endianness<N, E>(
+    fn read_with_endianness<N, E>(
         file: Input<'a>,
         input: Input<'a>,
         endianness: Endianness,
     ) -> Result<'a, Self, E>
     where
-        N: NumberParser<'a, E>,
+        N: Number<'a, E>,
         E: ParseError<Input<'a>>,
     {
         // `fh` stands for `file_header`.
@@ -84,22 +84,22 @@ impl<'a> File<'a> {
                 sh_index_for_section_names,
             ),
         ) = tuple((
-            Version::parse::<N, _>,
-            OsAbi::parse::<N, _>,
+            Version::read::<N, _>,
+            OsAbi::read::<N, _>,
             skip(8usize),
-            FileType::parse::<N, _>,
-            Machine::parse::<N, _>,
+            FileType::read::<N, _>,
+            Machine::read::<N, _>,
             skip(4usize),
-            Address::maybe_parse::<N, _>,
-            Address::parse::<N, _>,
-            Address::parse::<N, _>,
-            N::u32,
+            Address::maybe_read::<N, _>,
+            Address::read::<N, _>,
+            Address::read::<N, _>,
+            N::read_u32,
             skip(2usize),
-            N::u16,
-            N::u16,
-            N::u16,
-            N::u16,
-            SectionIndex::parse_u16::<N, _>,
+            N::read_u16,
+            N::read_u16,
+            N::read_u16,
+            N::read_u16,
+            SectionIndex::read_u16::<N, _>,
         ))(input)?;
 
         let mut programs = Vec::with_capacity(ph_number as usize);
@@ -110,7 +110,7 @@ impl<'a> File<'a> {
                 .chunks_exact(ph_entry_size as usize)
                 .take(ph_number as usize)
             {
-                let (_, ph) = Program::parse::<N, _>(file, ph_slice)?;
+                let (_, ph) = Program::read::<N, _>(file, ph_slice)?;
                 programs.push(ph);
             }
         }
@@ -123,7 +123,7 @@ impl<'a> File<'a> {
                 .chunks_exact(sh_entry_size as usize)
                 .take(sh_number as usize)
             {
-                let (_, sh) = Section::parse::<N, _>(file, sh_slice)?;
+                let (_, sh) = Section::read::<N, _>(file, sh_slice)?;
                 sections.push(sh);
             }
         }
@@ -162,7 +162,7 @@ impl<'a> File<'a> {
 }
 
 /// Byte order of the file.
-#[derive(Parse, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Read, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Endianness {
     // Little endian byte order.
@@ -172,7 +172,7 @@ pub enum Endianness {
 }
 
 /// Elf version.
-#[derive(Parse, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Read, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Version {
     // Invalid version.
@@ -182,7 +182,7 @@ pub enum Version {
 }
 
 /// Operating System (OS) Application Binary Interface (ABI).
-#[derive(Parse, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Read, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum OsAbi {
     /// [System V](https://en.wikipedia.org/wiki/System_V).
@@ -230,7 +230,7 @@ pub enum OsAbi {
 }
 
 /// Type of the file.
-#[derive(Parse, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Read, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
 pub enum FileType {
     /// Unknown.
@@ -246,7 +246,7 @@ pub enum FileType {
 }
 
 /// Architecture.
-#[derive(Parse, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Read, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
 pub enum Machine {
     /// No specific instruction set.

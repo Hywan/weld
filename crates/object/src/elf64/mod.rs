@@ -2,7 +2,7 @@ use std::{fmt, num::NonZeroU64, ops::Add};
 
 use nom::Err::Error;
 
-use crate::{combinators::*, Input, NumberParser, Result};
+use crate::{combinators::*, Input, Number, Result};
 
 mod data;
 mod file;
@@ -22,32 +22,32 @@ pub use symbol::*;
 pub struct Address(pub u64);
 
 impl Address {
-    pub fn parse<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+    pub fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
     where
-        N: NumberParser<'a, E>,
+        N: Number<'a, E>,
         E: ParseError<Input<'a>>,
     {
-        let (input, address) = N::u64(input)?;
+        let (input, address) = N::read_u64(input)?;
 
         Ok((input, Address(address)))
     }
 
-    pub fn parse_u32<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+    pub fn read_u32<'a, N, E>(input: Input<'a>) -> Result<Self, E>
     where
-        N: NumberParser<'a, E>,
+        N: Number<'a, E>,
         E: ParseError<Input<'a>>,
     {
-        let (input, address) = N::u32(input)?;
+        let (input, address) = N::read_u32(input)?;
 
         Ok((input, Address(address.into())))
     }
 
-    pub fn maybe_parse<'a, N, E>(input: Input<'a>) -> Result<Option<Self>, E>
+    pub fn maybe_read<'a, N, E>(input: Input<'a>) -> Result<Option<Self>, E>
     where
-        N: NumberParser<'a, E>,
+        N: Number<'a, E>,
         E: ParseError<Input<'a>>,
     {
-        let (input, address) = Self::parse::<N, E>(input)?;
+        let (input, address) = Self::read::<N, E>(input)?;
 
         Ok((input, if address.0 == 0 { None } else { Some(address) }))
     }
@@ -98,12 +98,12 @@ impl Add for Address {
 pub struct Alignment(pub Option<NonZeroU64>);
 
 impl Alignment {
-    pub fn parse<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
+    pub fn read<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
-        N: NumberParser<'a, E>,
+        N: Number<'a, E>,
         E: ParseError<Input<'a>>,
     {
-        let (next_input, alignment) = N::u64(input)?;
+        let (next_input, alignment) = N::read_u64(input)?;
 
         let alignment = if alignment != 0 {
             if !alignment.is_power_of_two() {
@@ -133,26 +133,26 @@ mod tests {
     fn test_alignment() {
         // No alignment.
         assert_eq!(
-            Alignment::parse::<BigEndian, ()>(&0u64.to_be_bytes()),
+            Alignment::read::<BigEndian, ()>(&0u64.to_be_bytes()),
             Ok((&[] as &[u8], Alignment(None)))
         );
 
         // Some valid alignment.
         assert_eq!(
-            Alignment::parse::<BigEndian, ()>(&512u64.to_be_bytes()),
+            Alignment::read::<BigEndian, ()>(&512u64.to_be_bytes()),
             Ok((&[] as &[u8], Alignment(Some(NonZeroU64::new(512).unwrap()))))
         );
 
         // Some invalid (because not a power of two) alignment
         assert_eq!(
-            Alignment::parse::<BigEndian, ()>(&513u64.to_be_bytes()),
+            Alignment::read::<BigEndian, ()>(&513u64.to_be_bytes()),
             Err(nom::Err::Error(())),
         );
     }
 
     #[test]
     fn test_me() {
-        let (remaining, file) = File::parse::<VerboseError<Input>>(EXIT_FILE).unwrap();
+        let (_remaining, file) = File::read::<VerboseError<Input>>(EXIT_FILE).unwrap();
         dbg!(&file);
 
         let string_section = file.sections.iter().find(|section| matches!(section, Section { r#type: SectionType::StringTable, name: Some(section_name), .. } if *section_name == ".strtab")).unwrap();

@@ -2,10 +2,10 @@ use std::num::NonZeroU64;
 
 use bstr::BStr;
 use enumflags2::{bitflags, BitFlags};
-use weld_object_macros::Parse;
+use weld_object_macros::Read;
 
 use super::{Address, Alignment, Data};
-use crate::{combinators::*, Input, NumberParser, Result};
+use crate::{combinators::*, Input, Number, Result};
 
 /// Section header.
 #[derive(Debug, PartialEq)]
@@ -41,9 +41,9 @@ pub struct Section<'a> {
 }
 
 impl<'a> Section<'a> {
-    pub fn parse<N, E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
+    pub fn read<N, E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
     where
-        N: NumberParser<'a, E>,
+        N: Number<'a, E>,
         E: ParseError<Input<'a>>,
     {
         let (
@@ -61,16 +61,16 @@ impl<'a> Section<'a> {
                 entity_size,
             ),
         ) = tuple((
-            N::u32,
-            SectionType::parse::<N, _>,
-            SectionFlag::parse_bits::<N, _>,
-            Address::parse::<N, _>,
-            Address::parse::<N, _>,
-            Address::parse::<N, _>,
-            SectionIndex::parse_u32::<N, _>,
-            N::u32,
-            Alignment::parse::<N, _>,
-            N::u64,
+            N::read_u32,
+            SectionType::read::<N, _>,
+            SectionFlag::read_bits::<N, _>,
+            Address::read::<N, _>,
+            Address::read::<N, _>,
+            Address::read::<N, _>,
+            SectionIndex::read_u32::<N, _>,
+            N::read_u32,
+            Alignment::read::<N, _>,
+            N::read_u64,
         ))(input)?;
 
         let entity_size = if entity_size != 0 {
@@ -105,7 +105,7 @@ impl<'a> Section<'a> {
 }
 
 /// Section type.
-#[derive(Parse, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Read, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum SectionType {
     /// Mark an unused section header.
@@ -194,12 +194,12 @@ pub enum SectionFlag {
 pub type SectionFlags = BitFlags<SectionFlag>;
 
 impl SectionFlag {
-    pub fn parse_bits<'a, N, E>(input: Input<'a>) -> Result<SectionFlags, E>
+    pub fn read_bits<'a, N, E>(input: Input<'a>) -> Result<SectionFlags, E>
     where
-        N: NumberParser<'a, E>,
+        N: Number<'a, E>,
         E: ParseError<Input<'a>>,
     {
-        let (input, flags) = N::u64(input)?;
+        let (input, flags) = N::read_u64(input)?;
         let flags = SectionFlags::from_bits(flags)
             .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
 
@@ -230,27 +230,27 @@ pub enum SectionIndex {
 }
 
 impl SectionIndex {
-    pub fn parse_u16<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
+    pub fn read_u16<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
-        N: NumberParser<'a, E>,
+        N: Number<'a, E>,
         E: ParseError<Input<'a>>,
     {
-        let (input, index) = N::u16(input)?;
+        let (input, index) = N::read_u16(input)?;
 
-        Self::_parse(input, index.into())
+        Self::_read(input, index.into())
     }
 
-    pub fn parse_u32<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
+    pub fn read_u32<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
-        N: NumberParser<'a, E>,
+        N: Number<'a, E>,
         E: ParseError<Input<'a>>,
     {
-        let (input, index) = N::u32(input)?;
+        let (input, index) = N::read_u32(input)?;
 
-        Self::_parse(input, index)
+        Self::_read(input, index)
     }
 
-    fn _parse<'a, E>(input: Input<'a>, index: u32) -> Result<'a, Self, E>
+    fn _read<'a, E>(input: Input<'a>, index: u32) -> Result<'a, Self, E>
     where
         E: ParseError<Input<'a>>,
     {
@@ -308,7 +308,7 @@ mod tests {
         let file: &[u8] = &[0x0, 0x61, 0x62, 0x63, 0x0];
 
         assert_eq!(
-            Section::parse::<BigEndian, ()>(file, input),
+            Section::read::<BigEndian, ()>(file, input),
             Ok((
                 &[] as &[u8],
                 Section {
@@ -338,7 +338,7 @@ mod tests {
                     let input: u16 = $input;
 
                     assert_eq!(
-                        SectionIndex::parse_u16::<crate::BigEndian, ()>(&input.to_be_bytes()),
+                        SectionIndex::read_u16::<crate::BigEndian, ()>(&input.to_be_bytes()),
                         Ok((&[] as &[u8], $result))
                     );
                 }
@@ -348,7 +348,7 @@ mod tests {
                     let input: u32 = $input;
 
                     assert_eq!(
-                        SectionIndex::parse_u32::<crate::BigEndian, ()>(&input.to_be_bytes()),
+                        SectionIndex::read_u32::<crate::BigEndian, ()>(&input.to_be_bytes()),
                         Ok((&[] as &[u8], $result))
                     );
                 }

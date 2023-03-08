@@ -2,24 +2,24 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse, Attribute, Data, DataEnum, DeriveInput, Generics, Ident};
 
-#[proc_macro_derive(Parse)]
-pub fn derive_enum_parse(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(Read)]
+pub fn derive_enum_read(input: TokenStream) -> TokenStream {
     let derive_input: DeriveInput = parse(input).unwrap();
 
     match derive_input.data {
-        Data::Enum(ref enum_data) => derive_enum_parse_impl(
+        Data::Enum(ref enum_data) => derive_enum_read_impl(
             &derive_input.ident,
             enum_data,
             &derive_input.generics,
             fetch_repr(&derive_input.attrs),
         ),
         Data::Struct(_) | Data::Union(_) => {
-            panic!("`Parse` cannot be derived onto `struct` or `union`")
+            panic!("`Read` cannot be derived onto `struct` or `union`")
         }
     }
 }
 
-fn derive_enum_parse_impl(
+fn derive_enum_read_impl(
     enum_name: &Ident,
     data: &DataEnum,
     generics: &Generics,
@@ -30,10 +30,10 @@ fn derive_enum_parse_impl(
     let repr = repr.expect("A `#repr(…)` attribute must be present");
     let parser_combinator = proc_macro2::Ident::new(
         match repr.to_string().as_str() {
-            "u8" => "u8",
-            "u16" => "u16",
-            "u32" => "u32",
-            repr => panic!("`Parse` does not handle the `{repr}` representation yet"),
+            "u8" => "read_u8",
+            "u16" => "read_u16",
+            "u32" => "read_u32",
+            repr => panic!("`Read` does not handle the `{repr}` representation yet"),
         },
         proc_macro2::Span::call_site(),
     );
@@ -70,9 +70,9 @@ fn derive_enum_parse_impl(
         impl #impl_generics #enum_name #ty_generics
         #where_clause
         {
-            pub fn parse<'a, N, E>(input: crate::Input<'a>) -> crate::Result<Self, E>
+            pub fn read<'a, N, E>(input: crate::Input<'a>) -> crate::Result<Self, E>
             where
-                N: crate::NumberParser<'a, E>,
+                N: crate::Number<'a, E>,
                 E: ::nom::error::ParseError<crate::Input<'a>>,
             {
                 let (input, discriminant) = N::#parser_combinator(input)?;
@@ -94,11 +94,11 @@ fn derive_enum_parse_impl(
                     let input: #repr = #enum_name::#variants as _;
 
                     assert_eq!(
-                        #enum_name::parse::<crate::LittleEndian, ()>(&input.to_le_bytes()[..]),
+                        #enum_name::read::<crate::LittleEndian, ()>(&input.to_le_bytes()[..]),
                         Ok((&[] as &[u8], #enum_name::#variants))
                     );
                     assert_eq!(
-                        #enum_name::parse::<crate::BigEndian, ()>(&input.to_be_bytes()[..]),
+                        #enum_name::read::<crate::BigEndian, ()>(&input.to_be_bytes()[..]),
                         Ok((&[] as &[u8], #enum_name::#variants))
                     );
                 }

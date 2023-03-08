@@ -4,7 +4,7 @@ use bstr::BStr;
 use nom::Offset;
 
 use super::{Address, SectionIndex};
-use crate::{combinators::*, BigEndian, Endianness, Input, LittleEndian, NumberParser, Result};
+use crate::{combinators::*, BigEndian, Endianness, Input, LittleEndian, Number, Result};
 
 /// A symbol.
 #[derive(Debug, PartialEq, Eq)]
@@ -38,9 +38,9 @@ pub struct Symbol<'a> {
 }
 
 impl<'a> Symbol<'a> {
-    pub fn parse<N, E>(input: Input<'a>) -> Result<'a, Self, E>
+    pub fn read<N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
-        N: NumberParser<'a, E>,
+        N: Number<'a, E>,
         E: ParseError<Input<'a>>,
     {
         let (
@@ -55,13 +55,13 @@ impl<'a> Symbol<'a> {
                 size,
             ),
         ) = tuple((
-            Address::parse_u32::<N, _>,
-            SymbolBinding::parse::<N, _>,
-            SymbolType::parse::<N, _>,
+            Address::read_u32::<N, _>,
+            SymbolBinding::read::<N, _>,
+            SymbolType::read::<N, _>,
             tag(&[0x00]),
-            SectionIndex::parse_u16::<N, _>,
-            Address::parse::<N, _>,
-            N::u64,
+            SectionIndex::read_u16::<N, _>,
+            Address::read::<N, _>,
+            N::read_u64,
         ))(input)?;
 
         Ok((
@@ -99,12 +99,12 @@ pub enum SymbolBinding {
 }
 
 impl SymbolBinding {
-    pub fn parse<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+    pub fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
     where
-        N: NumberParser<'a, E>,
+        N: Number<'a, E>,
         E: ParseError<Input<'a>>,
     {
-        let (_, binding) = N::u8(input)?;
+        let (_, binding) = N::read_u8(input)?;
 
         Ok((
             input,
@@ -146,12 +146,12 @@ pub enum SymbolType {
 }
 
 impl SymbolType {
-    pub fn parse<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+    pub fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
     where
-        N: NumberParser<'a, E>,
+        N: Number<'a, E>,
         E: ParseError<Input<'a>>,
     {
-        let (input, r#type) = N::u8(input)?;
+        let (input, r#type) = N::read_u8(input)?;
 
         Ok((
             input,
@@ -206,14 +206,14 @@ where
             return None;
         }
 
-        let parsed = match self.endianness {
-            Endianness::Big => Symbol::parse::<BigEndian, E>(self.input),
-            Endianness::Little => Symbol::parse::<LittleEndian, E>(self.input),
+        let read = match self.endianness {
+            Endianness::Big => Symbol::read::<BigEndian, E>(self.input),
+            Endianness::Little => Symbol::read::<LittleEndian, E>(self.input),
         };
 
-        match parsed {
+        match read {
             Ok((next_input, symbol)) => {
-                // Ensure we have parsed the correct amount of bytes.
+                // Ensure we have read the correct amount of bytes.
                 if let Some(entity_size) = self.entity_size {
                     let offset = self.input.offset(next_input);
                     let entity_size: usize = entity_size
@@ -261,7 +261,7 @@ mod tests {
         ];
 
         assert_eq!(
-            Symbol::parse::<BigEndian, ()>(input),
+            Symbol::read::<BigEndian, ()>(input),
             Ok((
                 &[] as &[u8],
                 Symbol {
@@ -283,7 +283,7 @@ mod tests {
             ($input:expr => $result:expr) => {{
                 let input: u8 = $input << 4;
                 assert_eq!(
-                    SymbolBinding::parse::<crate::BigEndian, ()>(&[input]),
+                    SymbolBinding::read::<crate::BigEndian, ()>(&[input]),
                     Ok((&[input] as &[u8], $result))
                     //    ^~~~~ doesn't consume the input!
                 );
@@ -311,7 +311,7 @@ mod tests {
             ($input:expr => $result:expr) => {{
                 let input: u8 = $input & 0x0f;
                 assert_eq!(
-                    SymbolType::parse::<crate::BigEndian, ()>(&[input]),
+                    SymbolType::read::<crate::BigEndian, ()>(&[input]),
                     Ok((&[] as &[u8], $result))
                 );
             }};
