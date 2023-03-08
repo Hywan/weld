@@ -31,7 +31,7 @@ impl Error {
                     .footer(
                         "For more information about an error, try \
                         `weld --explain <error>` where `<error>` \
-                        has the `E[0-9]{{3}} pattern."
+                        has the `E[0-9]{3} pattern."
                             .to_string(),
                     )
                     .width(85)
