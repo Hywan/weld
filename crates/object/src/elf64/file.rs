@@ -1,8 +1,7 @@
-use bstr::BStr;
 use weld_object_macros::Read;
 
 use super::{Address, Program, Section, SectionIndex, SectionType};
-use crate::{combinators::*, BigEndian, Input, LittleEndian, Number, Result};
+use crate::{combinators::*, slice::SliceExt, BigEndian, Input, LittleEndian, Number, Result};
 
 /// Object file.
 #[derive(Debug)]
@@ -129,19 +128,23 @@ impl<'a> File<'a> {
         }
 
         // Parse section names.
-        if let SectionIndex::Ok(sh_index_for_section_names) = sh_index_for_section_names {
-            if sh_index_for_section_names < sections.len()
-                && sections[sh_index_for_section_names].r#type == SectionType::StringTable
+        if let SectionIndex::Ok(index) = sh_index_for_section_names {
+            // Validate the `sh_index_for_section_names`.
+            if sections.is_empty()
+                || index >= sections.len()
+                || sections[index].r#type != SectionType::StringTable
             {
-                let section_names = sections[sh_index_for_section_names].data.inner;
+                return Err(Err::Error(E::from_error_kind(input, ErrorKind::AlphaNumeric)));
+            }
 
-                for section_header in &mut sections {
-                    let name = &section_names[section_header.name_offset.into()..];
+            let (first_sections, section_names, last_sections) =
+                // SAFETY: `first_sections` and `last_sections` aren't stored and don't outlive `sections`.
+                unsafe { sections.split_around_at_mut(index.into()) }
+                    // SAFETY: `unwrap`ing is safe because `sections` is not empty.
+                    .unwrap();
 
-                    if let Some(name_end) = name.iter().position(|c| *c == 0x00) {
-                        section_header.name = Some(BStr::new(&name[..name_end]));
-                    }
-                }
+            for section in first_sections.iter_mut().chain(last_sections.iter_mut()) {
+                section.name = section_names.data.string_at_offset(section.name_offset.into());
             }
         }
 

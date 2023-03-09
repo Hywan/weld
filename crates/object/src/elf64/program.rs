@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use enumflags2::{bitflags, BitFlags};
 use weld_object_macros::Read;
 
@@ -69,7 +71,9 @@ impl<'a> Program<'a> {
             alignment,
             segment_flags,
             data: Data::new(
-                &file[offset.into()..][..segment_size_in_file_image.try_into().unwrap()],
+                Cow::Borrowed(
+                    &file[offset.into()..][..segment_size_in_file_image.try_into().unwrap()],
+                ),
                 DataType::Unspecified,
                 N::endianness(),
                 None,

@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, num::NonZeroU64, result::Result as StdResult};
+use std::{borrow::Cow, marker::PhantomData, num::NonZeroU64, result::Result as StdResult};
 
 use bstr::BStr;
 use nom::Offset;
@@ -10,7 +10,7 @@ use crate::{combinators::*, BigEndian, Endianness, Input, LittleEndian, Number, 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Symbol<'a> {
     // Name of the symbol, if any.
-    pub name: Option<&'a BStr>,
+    pub name: Option<Cow<'a, BStr>>,
     /// An offset, in bytes, to the symbol name, relative to the start
     /// of the symbol string table. If this field contains zero, the symbol has
     /// no name.

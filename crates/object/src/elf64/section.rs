@@ -1,4 +1,4 @@
-use std::num::NonZeroU64;
+use std::{borrow::Cow, num::NonZeroU64};
 
 use bstr::BStr;
 use enumflags2::{bitflags, BitFlags};
@@ -11,7 +11,7 @@ use crate::{combinators::*, Input, Number, Result};
 #[derive(Debug, PartialEq)]
 pub struct Section<'a> {
     /// Name of the section, if any.
-    pub name: Option<&'a BStr>,
+    pub name: Option<Cow<'a, BStr>>,
     /// An offset to a string in the `.shstrtab` section that represents the
     /// name of this section.
     pub(super) name_offset: Address,
@@ -93,7 +93,7 @@ impl<'a> Section<'a> {
             alignment,
             entity_size,
             data: Data::new(
-                &file[offset.into()..][..segment_size_in_file_image.into()],
+                Cow::Borrowed(&file[offset.into()..][..segment_size_in_file_image.into()]),
                 r#type.into(),
                 N::endianness(),
                 entity_size,
@@ -323,7 +323,12 @@ mod tests {
                     information: 0,
                     alignment: Alignment(Some(NonZeroU64::new(512).unwrap())),
                     entity_size: None,
-                    data: Data::new(&file[..], DataType::StringTable, Endianness::Big, None),
+                    data: Data::new(
+                        Cow::Borrowed(&file[..]),
+                        DataType::StringTable,
+                        Endianness::Big,
+                        None
+                    ),
                 }
             ))
         );

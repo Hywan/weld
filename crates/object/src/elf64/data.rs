@@ -1,4 +1,4 @@
-use std::{fmt, num::NonZeroU64};
+use std::{borrow::Cow, fmt, num::NonZeroU64};
 
 use bstr::BStr;
 use nom::error::VerboseError;
@@ -37,7 +37,7 @@ impl From<SectionType> for DataType {
 #[derive(PartialEq)]
 pub struct Data<'a> {
     /// Inner bytes.
-    pub(crate) inner: &'a [u8],
+    pub(crate) inner: Cow<'a, [u8]>,
     /// The type of the data represented by the bytes.
     pub(crate) r#type: DataType,
     /// The endianness of the data.
@@ -50,7 +50,7 @@ pub struct Data<'a> {
 impl<'a> Data<'a> {
     /// Create a new `Data` type, wrapping some bytes.
     pub(crate) fn new(
-        inner: &'a [u8],
+        inner: Cow<'a, [u8]>,
         r#type: DataType,
         endianness: Endianness,
         entity_size: Option<NonZeroU64>,
@@ -64,7 +64,7 @@ impl<'a> Data<'a> {
     ///
     /// The string is not guaranteed to be valid UTF-8. It is a bytes slice,
     /// `&[u8]`.
-    pub fn string_at_offset(&self, offset: usize) -> Option<&'a BStr> {
+    pub fn string_at_offset(&self, offset: usize) -> Option<Cow<BStr>> {
         if self.r#type != DataType::StringTable {
             return None;
         }
@@ -76,7 +76,7 @@ impl<'a> Data<'a> {
         let name = &self.inner[offset..];
 
         if let Some(name_end) = name.iter().position(|c| *c == 0x00) {
-            Some(BStr::new(&name[..name_end]))
+            Some(Cow::Borrowed(BStr::new(&name[..name_end])))
         } else {
             None
         }
@@ -84,7 +84,7 @@ impl<'a> Data<'a> {
 
     /// Get an iterator over symbols, if and only if the data type is
     /// [`DataType::SymbolTable`].
-    pub fn symbols<E>(&self) -> Option<impl Iterator<Item = Result<Symbol<'a>, Err<E>>>>
+    pub fn symbols<E>(&'a self) -> Option<impl Iterator<Item = Result<Symbol<'a>, Err<E>>>>
     where
         E: ParseError<Input<'a>>,
     {
@@ -92,7 +92,7 @@ impl<'a> Data<'a> {
             return None;
         }
 
-        Some(SymbolIterator::new(self.inner, self.endianness, self.entity_size))
+        Some(SymbolIterator::new(self.inner.as_ref(), self.endianness, self.entity_size))
     }
 }
 
@@ -198,20 +198,20 @@ mod tests {
     #[test]
     fn test_string_at_offset() {
         let data = Data::new(
-            &[0x0, 0x61, 0x62, 0x63, 0x0, 0x64, 0x65, 0x0, 0x66],
+            Cow::Borrowed(&[0x0, 0x61, 0x62, 0x63, 0x0, 0x64, 0x65, 0x0, 0x66]),
             DataType::StringTable,
             Endianness::Little,
             None,
         );
 
-        assert_eq!(data.string_at_offset(0), Some(BStr::new("")));
-        assert_eq!(data.string_at_offset(1), Some(BStr::new("abc")));
-        assert_eq!(data.string_at_offset(2), Some(BStr::new("bc")));
-        assert_eq!(data.string_at_offset(3), Some(BStr::new("c")));
-        assert_eq!(data.string_at_offset(4), Some(BStr::new("")));
-        assert_eq!(data.string_at_offset(5), Some(BStr::new("de")));
-        assert_eq!(data.string_at_offset(6), Some(BStr::new("e")));
-        assert_eq!(data.string_at_offset(7), Some(BStr::new("")));
+        assert_eq!(data.string_at_offset(0), Some(Cow::Borrowed(BStr::new(""))));
+        assert_eq!(data.string_at_offset(1), Some(Cow::Borrowed(BStr::new("abc"))));
+        assert_eq!(data.string_at_offset(2), Some(Cow::Borrowed(BStr::new("bc"))));
+        assert_eq!(data.string_at_offset(3), Some(Cow::Borrowed(BStr::new("c"))));
+        assert_eq!(data.string_at_offset(4), Some(Cow::Borrowed(BStr::new(""))));
+        assert_eq!(data.string_at_offset(5), Some(Cow::Borrowed(BStr::new("de"))));
+        assert_eq!(data.string_at_offset(6), Some(Cow::Borrowed(BStr::new("e"))));
+        assert_eq!(data.string_at_offset(7), Some(Cow::Borrowed(BStr::new(""))));
         assert_eq!(data.string_at_offset(8), None);
         assert_eq!(data.string_at_offset(9), None);
         assert_eq!(data.string_at_offset(10), None);

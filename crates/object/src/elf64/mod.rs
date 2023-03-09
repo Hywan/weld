@@ -155,7 +155,19 @@ mod tests {
         let (_remaining, file) = File::read::<VerboseError<Input>>(EXIT_FILE).unwrap();
         dbg!(&file);
 
-        let string_section = file.sections.iter().find(|section| matches!(section, Section { r#type: SectionType::StringTable, name: Some(section_name), .. } if *section_name == ".strtab")).unwrap();
+        let string_section = file
+            .sections
+            .iter()
+            .find(|section| {
+                matches!(
+                    section,
+                    Section {
+                        r#type: SectionType::StringTable,
+                        name: Some(section_name), ..
+                    } if *section_name.as_ref() == ".strtab"
+                )
+            })
+            .expect("`.strtab` section not found");
 
         for section in
             file.sections.iter().filter(|section| section.r#type == SectionType::SymbolTable)
