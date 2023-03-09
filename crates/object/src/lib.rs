@@ -15,6 +15,7 @@ mod combinators;
 #[cfg(feature = "elf64")]
 pub mod elf64;
 mod endianness;
+pub mod slice;
 
 pub use endianness::*;
 
