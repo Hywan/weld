@@ -16,6 +16,7 @@ mod combinators;
 pub mod elf64;
 mod endianness;
 pub mod slice;
+pub mod write;
 
 pub use endianness::*;
 
