@@ -53,13 +53,12 @@ impl Address {
     }
 }
 
-impl<'a, N, E, B> Write<'a, N, E, B> for Address
-where
-    N: Number,
-    E: ParseError<Input<'a>>,
-    B: io::Write,
-{
-    fn write(&self, buffer: &mut B) -> io::Result<usize> {
+impl Write for Address {
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    where
+        N: Number,
+        B: io::Write,
+    {
         buffer.write(&N::write_u64(self.0))
     }
 }
@@ -131,13 +130,12 @@ impl Alignment {
     }
 }
 
-impl<'a, N, E, B> Write<'a, N, E, B> for Alignment
-where
-    N: Number,
-    E: ParseError<Input<'a>>,
-    B: io::Write,
-{
-    fn write(&self, buffer: &mut B) -> io::Result<usize> {
+impl Write for Alignment {
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    where
+        N: Number,
+        B: io::Write,
+    {
         buffer.write(&match self.0 {
             Some(alignment) => N::write_u64(alignment.get()),
             None => N::write_u64(0u64),
@@ -183,7 +181,7 @@ mod tests {
     fn test_address_write() {
         let mut buffer = Vec::new();
 
-        Write::<BigEndian, (), _>::write(&Address(42), &mut buffer).unwrap();
+        Address(42).write::<BigEndian, _>(&mut buffer).unwrap();
 
         assert_eq!(buffer, 42u64.to_be_bytes());
     }

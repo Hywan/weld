@@ -5,14 +5,12 @@
 
 use std::io;
 
-use crate::{combinators::ParseError, Input, Number};
+use crate::Number;
 
-pub trait Write<'a, N, E, B>
-where
-    N: Number,
-    E: ParseError<Input<'a>>,
-    B: io::Write,
-{
+pub trait Write {
     /// Write part of `self` into the `buffer`.
-    fn write(&self, buffer: &mut B) -> io::Result<usize>;
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    where
+        N: Number,
+        B: io::Write;
 }
