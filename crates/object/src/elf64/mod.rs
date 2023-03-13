@@ -1,8 +1,8 @@
-use std::{fmt, num::NonZeroU64, ops::Add};
+use std::{fmt, io, num::NonZeroU64, ops::Add};
 
 use nom::Err::Error;
 
-use crate::{combinators::*, Input, Number, Result};
+use crate::{combinators::*, write::Write, Input, Number, Result};
 
 mod data;
 mod file;
@@ -24,7 +24,7 @@ pub struct Address(pub u64);
 impl Address {
     pub fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
     where
-        N: Number<'a, E>,
+        N: Number,
         E: ParseError<Input<'a>>,
     {
         let (input, address) = N::read_u64(input)?;
@@ -34,7 +34,7 @@ impl Address {
 
     pub fn read_u32<'a, N, E>(input: Input<'a>) -> Result<Self, E>
     where
-        N: Number<'a, E>,
+        N: Number,
         E: ParseError<Input<'a>>,
     {
         let (input, address) = N::read_u32(input)?;
@@ -44,12 +44,23 @@ impl Address {
 
     pub fn maybe_read<'a, N, E>(input: Input<'a>) -> Result<Option<Self>, E>
     where
-        N: Number<'a, E>,
+        N: Number,
         E: ParseError<Input<'a>>,
     {
         let (input, address) = Self::read::<N, E>(input)?;
 
         Ok((input, if address.0 == 0 { None } else { Some(address) }))
+    }
+}
+
+impl<'a, N, E, B> Write<'a, N, E, B> for Address
+where
+    N: Number,
+    E: ParseError<Input<'a>>,
+    B: io::Write,
+{
+    fn write(&self, buffer: &mut B) -> io::Result<usize> {
+        buffer.write(&N::write_u64(self.0))
     }
 }
 
@@ -100,7 +111,7 @@ pub struct Alignment(pub Option<NonZeroU64>);
 impl Alignment {
     pub fn read<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
-        N: Number<'a, E>,
+        N: Number,
         E: ParseError<Input<'a>>,
     {
         let (next_input, alignment) = N::read_u64(input)?;
@@ -120,6 +131,20 @@ impl Alignment {
     }
 }
 
+impl<'a, N, E, B> Write<'a, N, E, B> for Alignment
+where
+    N: Number,
+    E: ParseError<Input<'a>>,
+    B: io::Write,
+{
+    fn write(&self, buffer: &mut B) -> io::Result<usize> {
+        buffer.write(&match self.0 {
+            Some(alignment) => N::write_u64(alignment.get()),
+            None => N::write_u64(0u64),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use nom::error::VerboseError;
@@ -130,7 +155,41 @@ mod tests {
     const EXIT_FILE: &'static [u8] = include_bytes!("../../tests/fixtures/exit_elf_amd64.o");
 
     #[test]
-    fn test_alignment() {
+    fn test_address_read() {
+        // From `u64`.
+        assert_eq!(
+            Address::read::<BigEndian, ()>(&42u64.to_be_bytes()),
+            Ok((&[] as &[u8], Address(42)))
+        );
+
+        // From `u32`.
+        assert_eq!(
+            Address::read_u32::<BigEndian, ()>(&42u32.to_be_bytes()),
+            Ok((&[] as &[u8], Address(42)))
+        );
+
+        // Maybe `u64`.
+        assert_eq!(
+            Address::maybe_read::<BigEndian, ()>(&42u64.to_be_bytes()),
+            Ok((&[] as &[u8], Some(Address(42))))
+        );
+        assert_eq!(
+            Address::maybe_read::<BigEndian, ()>(&0u64.to_be_bytes()),
+            Ok((&[] as &[u8], None))
+        );
+    }
+
+    #[test]
+    fn test_address_write() {
+        let mut buffer = Vec::new();
+
+        Write::<BigEndian, (), _>::write(&Address(42), &mut buffer).unwrap();
+
+        assert_eq!(buffer, 42u64.to_be_bytes());
+    }
+
+    #[test]
+    fn test_alignment_read() {
         // No alignment.
         assert_eq!(
             Alignment::read::<BigEndian, ()>(&0u64.to_be_bytes()),

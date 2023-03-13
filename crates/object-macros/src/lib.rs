@@ -72,10 +72,10 @@ fn derive_enum_read_impl(
         {
             pub fn read<'a, N, E>(input: crate::Input<'a>) -> crate::Result<Self, E>
             where
-                N: crate::Number<'a, E>,
+                N: crate::Number,
                 E: ::nom::error::ParseError<crate::Input<'a>>,
             {
-                let (input, discriminant) = N::#parser_combinator(input)?;
+                let (input, discriminant) = N::#parser_combinator::<E>(input)?;
 
                 Ok((
                     input,

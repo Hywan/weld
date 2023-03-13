@@ -40,7 +40,7 @@ pub struct Symbol<'a> {
 impl<'a> Symbol<'a> {
     pub fn read<N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
-        N: Number<'a, E>,
+        N: Number,
         E: ParseError<Input<'a>>,
     {
         let (
@@ -101,7 +101,7 @@ pub enum SymbolBinding {
 impl SymbolBinding {
     pub fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
     where
-        N: Number<'a, E>,
+        N: Number,
         E: ParseError<Input<'a>>,
     {
         let (_, binding) = N::read_u8(input)?;
@@ -148,7 +148,7 @@ pub enum SymbolType {
 impl SymbolType {
     pub fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
     where
-        N: Number<'a, E>,
+        N: Number,
         E: ParseError<Input<'a>>,
     {
         let (input, r#type) = N::read_u8(input)?;

@@ -9,7 +9,7 @@ use crate::{combinators::ParseError, Input, Number};
 
 pub trait Write<'a, N, E, B>
 where
-    N: Number<'a, E>,
+    N: Number,
     E: ParseError<Input<'a>>,
     B: io::Write,
 {

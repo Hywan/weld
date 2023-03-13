@@ -43,7 +43,7 @@ pub struct Section<'a> {
 impl<'a> Section<'a> {
     pub fn read<N, E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
     where
-        N: Number<'a, E>,
+        N: Number,
         E: ParseError<Input<'a>>,
     {
         let (
@@ -196,7 +196,7 @@ pub type SectionFlags = BitFlags<SectionFlag>;
 impl SectionFlag {
     pub fn read_bits<'a, N, E>(input: Input<'a>) -> Result<SectionFlags, E>
     where
-        N: Number<'a, E>,
+        N: Number,
         E: ParseError<Input<'a>>,
     {
         let (input, flags) = N::read_u64(input)?;
@@ -232,7 +232,7 @@ pub enum SectionIndex {
 impl SectionIndex {
     pub fn read_u16<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
-        N: Number<'a, E>,
+        N: Number,
         E: ParseError<Input<'a>>,
     {
         let (input, index) = N::read_u16(input)?;
@@ -242,7 +242,7 @@ impl SectionIndex {
 
     pub fn read_u32<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
-        N: Number<'a, E>,
+        N: Number,
         E: ParseError<Input<'a>>,
     {
         let (input, index) = N::read_u32(input)?;

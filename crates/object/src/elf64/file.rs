@@ -55,7 +55,7 @@ impl<'a> File<'a> {
         endianness: Endianness,
     ) -> Result<'a, Self, E>
     where
-        N: Number<'a, E>,
+        N: Number,
         E: ParseError<Input<'a>>,
     {
         // `fh` stands for `file_header`.

@@ -35,7 +35,7 @@ pub struct Program<'a> {
 impl<'a> Program<'a> {
     pub fn read<N, E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
     where
-        N: Number<'a, E>,
+        N: Number,
         E: ParseError<Input<'a>>,
     {
         let (
@@ -122,7 +122,7 @@ pub type ProgramFlags = BitFlags<ProgramFlag>;
 impl ProgramFlag {
     pub fn read_bits<'a, N, E>(input: Input<'a>) -> Result<ProgramFlags, E>
     where
-        N: Number<'a, E>,
+        N: Number,
         E: ParseError<Input<'a>>,
     {
         let (input, flags) = N::read_u32(input)?;
