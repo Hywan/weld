@@ -11,6 +11,10 @@
 #![deny(rustdoc::invalid_codeblock_attributes)]
 #![deny(rustdoc::invalid_rust_codeblocks)]
 
+#[cfg(test)]
+#[macro_use]
+mod test;
+
 mod combinators;
 #[cfg(feature = "elf64")]
 pub mod elf64;
