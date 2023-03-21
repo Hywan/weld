@@ -1,11 +1,11 @@
-use std::{borrow::Cow, num::NonZeroU64};
+use std::{borrow::Cow, io, num::NonZeroU64};
 
 use bstr::BStr;
 use enumflags2::{bitflags, BitFlags};
 use weld_object_macros::Read;
 
 use super::{Address, Alignment, Data};
-use crate::{combinators::*, Input, Number, Result};
+use crate::{combinators::*, write::Write, Input, Number, Result};
 
 /// Section header.
 #[derive(Debug, PartialEq)]
@@ -274,6 +274,27 @@ impl SectionIndex {
     }
 }
 
+impl Write for SectionIndex {
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    where
+        N: Number,
+        B: io::Write,
+    {
+        buffer.write(&N::write_u32(match self {
+            Self::Undefined => 0x0000,
+            Self::LowProcessorSpecific => 0xff00,
+            Self::HighProcessorSpecific => 0xff1f,
+            Self::LowEnvironmentSpecific => 0xff20,
+            Self::HighEnvironmentSpecific => 0xff3f,
+            Self::Absolute => 0xfff1,
+            Self::Common => 0xfff2,
+            Self::Ok(index) => {
+                (*index).try_into().expect("Failed to cast the section index from `usize` to `u32`")
+            }
+        }))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{super::DataType, *};
@@ -336,32 +357,23 @@ mod tests {
 
     #[test]
     fn test_section_index() {
+        assert_read_write!(SectionIndex::read_u32(0x0000u32) <=> SectionIndex::Undefined);
+
         macro_rules! test {
-            ($input:expr => $result:expr) => {{
-                // u16
-                {
-                    let input: u16 = $input;
-
-                    assert_eq!(
-                        SectionIndex::read_u16::<crate::BigEndian, ()>(&input.to_be_bytes()),
-                        Ok((&[] as &[u8], $result))
+            ( $( $input:expr => $result:expr ),* $(,)? ) => {{
+                $(
+                    assert_read_write!(
+                        SectionIndex::read_u16($input ( as u16 ) ~ $input ( as u32 ) )
+                        <=>
+                        $result
                     );
-                }
-
-                // u32
-                {
-                    let input: u32 = $input;
-
-                    assert_eq!(
-                        SectionIndex::read_u32::<crate::BigEndian, ()>(&input.to_be_bytes()),
-                        Ok((&[] as &[u8], $result))
+                    assert_read_write!(
+                        SectionIndex::read_u32($input ( as u32 ) ~ $input ( as u32 ) )
+                        <=>
+                        $result
                     );
-                }
+                )*
             }};
-
-            ( $( $input:expr => $result:expr ),* $(,)? ) => {
-                $( test!($input => $result); )*
-            };
         }
 
         test!(
