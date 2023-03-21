@@ -370,8 +370,10 @@ mod tests {
         macro_rules! test {
             ( $( $input:expr => $result:expr ),* $(,)? ) => {{
                 $(
+                    let input: u64 = $input;
+
                     assert_read_write!(
-                        SectionFlag::read_bits($input ( as u64 ))
+                        SectionFlag::read_bits(input)
                         <=>
                         SectionFlags::from_bits($result as _).unwrap()
                     );
@@ -397,13 +399,20 @@ mod tests {
         macro_rules! test {
             ( $( $input:expr => $result:expr ),* $(,)? ) => {{
                 $(
+                    let input: u16 = $input;
+                    let real_input: u32 = input as _;
+
                     assert_read_write!(
-                        SectionIndex::read_u16($input ( as u16 ) ~ $input ( as u32 ) )
+                        SectionIndex::read_u16(input ~ real_input)
                         <=>
                         $result
                     );
+
+                    let input: u32 = $input;
+                    let real_input: u32 = input;
+
                     assert_read_write!(
-                        SectionIndex::read_u32($input ( as u32 ) ~ $input ( as u32 ) )
+                        SectionIndex::read_u32(input ~ real_input)
                         <=>
                         $result
                     );
