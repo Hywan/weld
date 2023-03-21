@@ -122,7 +122,7 @@ impl<'a> File<'a> {
                 .chunks_exact(sh_entry_size as usize)
                 .take(sh_number as usize)
             {
-                let (_, sh) = Section::read::<N, _>(file, sh_slice)?;
+                let (_, sh) = Section::read::<N, _>(sh_slice, file)?;
                 sections.push(sh);
             }
         }

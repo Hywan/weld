@@ -1,5 +1,5 @@
 macro_rules! assert_read {
-    ($type:ident::$reader:ident( $input:tt ) <=> $built_type:expr ) => {
+    ( $type:ident :: $reader:ident ( $input:tt ) <=> $built_type:expr ) => {
         // Read as big endian.
         {
             let input = $input.to_be_bytes();
@@ -19,11 +19,18 @@ macro_rules! assert_read {
 }
 
 macro_rules! assert_read_write {
-    ($type:ident::$reader:ident($input:tt $( ~ $real_input:tt )? ) <=> $built_type:expr ) => {
+    (
+        $type:ident :: $reader:ident (
+            $input:tt $( ~ $real_input:tt )?
+            $( , $args:expr )* $(,)?
+        )
+        <=>
+        $built_type:expr
+    ) => {
         // Read as big endian.
         {
             let input = $input.to_be_bytes();
-            let value = $type::$reader::<crate::BigEndian, ()>(&input);
+            let value = $type::$reader::<crate::BigEndian, ()>(&input $( , $args )* );
 
             assert_eq!(value, Ok((&[] as &[u8], $built_type)), "read as big endian");
         }
@@ -31,7 +38,7 @@ macro_rules! assert_read_write {
         // Read as little endian.
         {
             let input = $input.to_le_bytes();
-            let value = $type::$reader::<crate::LittleEndian, ()>(&input);
+            let value = $type::$reader::<crate::LittleEndian, ()>(&input $( , $args )* );
 
             assert_eq!(value, Ok((&[] as &[u8], $built_type)), "read as little endian");
         }

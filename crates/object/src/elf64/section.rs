@@ -41,7 +41,7 @@ pub struct Section<'a> {
 }
 
 impl<'a> Section<'a> {
-    pub fn read<N, E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
+    pub fn read<N, E>(input: Input<'a>, file: Input<'a>) -> Result<'a, Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,
@@ -61,7 +61,7 @@ impl<'a> Section<'a> {
                 entity_size,
             ),
         ) = tuple((
-            N::read_u32,
+            Address::read_u32::<N, _>,
             SectionType::read::<N, _>,
             SectionFlag::read_bits::<N, _>,
             Address::read::<N, _>,
@@ -82,7 +82,7 @@ impl<'a> Section<'a> {
 
         let section_header = Self {
             name: None,
-            name_offset: name_offset.into(),
+            name_offset,
             r#type,
             flags,
             virtual_address,
@@ -101,6 +101,25 @@ impl<'a> Section<'a> {
         };
 
         Ok((input, section_header))
+    }
+}
+
+impl<'a> Write for Section<'a> {
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    where
+        N: Number,
+        B: io::Write,
+    {
+        self.name_offset.write_u32::<N, _>(buffer)?;
+        self.r#type.write::<N, _>(buffer)?;
+        self.flags.write::<N, _>(buffer)?;
+        self.virtual_address.write::<N, _>(buffer)?;
+        self.offset.write::<N, _>(buffer)?;
+        self.segment_size_in_file_image.write::<N, _>(buffer)?;
+        self.link.write_u32::<N, _>(buffer)?;
+        buffer.write(&N::write_u32(self.information))?;
+        self.alignment.write::<N, _>(buffer)?;
+        buffer.write(&N::write_u64(self.entity_size.map_or(0, NonZeroU64::get)))
     }
 }
 
@@ -338,31 +357,27 @@ mod tests {
 
         let file: &[u8] = &[0x0, 0x61, 0x62, 0x63, 0x0];
 
-        assert_eq!(
-            Section::read::<BigEndian, ()>(file, input),
-            Ok((
-                &[] as &[u8],
-                Section {
-                    name: None,
-                    name_offset: Address(1),
-                    r#type: SectionType::StringTable,
-                    flags: SectionFlags::EMPTY,
-                    virtual_address: Address(7),
-                    offset: Address(0),
-                    segment_size_in_file_image: Address(5),
-                    link: SectionIndex::Ok(3),
-                    information: 0,
-                    alignment: Alignment(Some(NonZeroU64::new(512).unwrap())),
-                    entity_size: None,
-                    data: Data::new(
-                        Cow::Borrowed(&file[..]),
-                        DataType::StringTable,
-                        Endianness::Big,
-                        None
-                    ),
-                }
-            ))
-        );
+        let section = Section {
+            name: None,
+            name_offset: Address(1),
+            r#type: SectionType::StringTable,
+            flags: SectionFlags::EMPTY,
+            virtual_address: Address(7),
+            offset: Address(0),
+            segment_size_in_file_image: Address(5),
+            link: SectionIndex::Ok(3),
+            information: 0,
+            alignment: Alignment(Some(NonZeroU64::new(512).unwrap())),
+            entity_size: None,
+            data: Data::new(Cow::Borrowed(&file[..]), DataType::StringTable, Endianness::Big, None),
+        };
+
+        let mut buffer = Vec::new();
+        section.write::<BigEndian, _>(&mut buffer).unwrap();
+
+        assert_eq!(buffer, input);
+
+        assert_eq!(Section::read::<BigEndian, ()>(input, file), Ok((&[] as &[u8], section)));
     }
 
     #[test]

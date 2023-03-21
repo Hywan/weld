@@ -61,6 +61,16 @@ impl Write for Address {
     {
         buffer.write(&N::write_u64(self.0))
     }
+
+    fn write_u32<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    where
+        N: Number,
+        B: io::Write,
+    {
+        buffer.write(&N::write_u32(
+            self.0.try_into().expect("Failed to cast the alignment from `u64` to `u32`"),
+        ))
+    }
 }
 
 impl fmt::Debug for Address {
@@ -138,7 +148,7 @@ impl Write for Alignment {
     {
         buffer.write(&match self.0 {
             Some(alignment) => N::write_u64(alignment.get()),
-            None => N::write_u64(0u64),
+            None => N::write_u64(0),
         })
     }
 }
