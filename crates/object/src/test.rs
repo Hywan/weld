@@ -1,5 +1,5 @@
 macro_rules! assert_read {
-    ($type:ident::$reader:ident($input:literal) == $built_type:expr ) => {
+    ($type:ident::$reader:ident($input:literal) <=> $built_type:expr ) => {
         // Read as big endian.
         {
             let input = $input.to_be_bytes();
@@ -19,7 +19,7 @@ macro_rules! assert_read {
 }
 
 macro_rules! assert_read_write {
-    ($type:ident::$reader:ident($input:literal $( ~ $real_input:literal )? ) == $built_type:expr ) => {
+    ($type:ident::$reader:ident($input:literal $( ~ $real_input:literal )? ) <=> $built_type:expr ) => {
         // Read as big endian.
         {
             let input = $input.to_be_bytes();

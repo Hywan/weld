@@ -154,20 +154,20 @@ mod tests {
 
     #[test]
     fn test_address_read() {
-        assert_read_write!(Address::read(42u64) == Address(42));
-        assert_read_write!(Address::read_u32(42u32 ~ 42u64) == Address(42));
-        assert_read!(Address::maybe_read(42u64) == Some(Address(42)));
-        assert_read!(Address::maybe_read(0u64) == None);
+        assert_read_write!(Address::read(42u64) <=> Address(42));
+        assert_read_write!(Address::read_u32(42u32 ~ 42u64) <=> Address(42));
+        assert_read!(Address::maybe_read(42u64) <=> Some(Address(42)));
+        assert_read!(Address::maybe_read(0u64) <=> None);
     }
 
     #[test]
     fn test_alignment() {
         // No alignment.
-        assert_read_write!(Alignment::read(0u64) == Alignment(None));
+        assert_read_write!(Alignment::read(0u64) <=> Alignment(None));
 
         // Some value alignment.
         assert_read_write!(
-            Alignment::read(512u64) == Alignment(Some(NonZeroU64::new(512).unwrap()))
+            Alignment::read(512u64) <=> Alignment(Some(NonZeroU64::new(512).unwrap()))
         );
 
         // Some invalid (because not a power of two) alignment
