@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use enumflags2::{bitflags, BitFlags};
-use weld_object_macros::Read;
+use weld_object_macros::ReadWrite;
 
 use super::{Address, Alignment, Data, DataType};
 use crate::{combinators::*, Input, Number, Result};
@@ -85,7 +85,7 @@ impl<'a> Program<'a> {
 }
 
 /// Type of program.
-#[derive(Read, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(ReadWrite, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum ProgramType {
     /// Program header table entry unused.

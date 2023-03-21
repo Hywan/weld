@@ -2,10 +2,10 @@ use std::{borrow::Cow, io, num::NonZeroU64};
 
 use bstr::BStr;
 use enumflags2::{bitflags, BitFlags};
-use weld_object_macros::Read;
+use weld_object_macros::ReadWrite;
 
 use super::{Address, Alignment, Data};
-use crate::{combinators::*, write::Write, Input, Number, Result};
+use crate::{combinators::*, Input, Number, Result, Write};
 
 /// Section header.
 #[derive(Debug, PartialEq)]
@@ -105,7 +105,7 @@ impl<'a> Section<'a> {
 }
 
 /// Section type.
-#[derive(Read, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(ReadWrite, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum SectionType {
     /// Mark an unused section header.
@@ -357,8 +357,6 @@ mod tests {
 
     #[test]
     fn test_section_index() {
-        assert_read_write!(SectionIndex::read_u32(0x0000u32) <=> SectionIndex::Undefined);
-
         macro_rules! test {
             ( $( $input:expr => $result:expr ),* $(,)? ) => {{
                 $(

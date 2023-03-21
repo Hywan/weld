@@ -2,24 +2,24 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse, Attribute, Data, DataEnum, DeriveInput, Generics, Ident};
 
-#[proc_macro_derive(Read)]
-pub fn derive_enum_read(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(ReadWrite)]
+pub fn derive_enum_read_write(input: TokenStream) -> TokenStream {
     let derive_input: DeriveInput = parse(input).unwrap();
 
     match derive_input.data {
-        Data::Enum(ref enum_data) => derive_enum_read_impl(
+        Data::Enum(ref enum_data) => derive_enum_read_write_impl(
             &derive_input.ident,
             enum_data,
             &derive_input.generics,
             fetch_repr(&derive_input.attrs),
         ),
         Data::Struct(_) | Data::Union(_) => {
-            panic!("`Read` cannot be derived onto `struct` or `union`")
+            panic!("`ReadWrite` cannot be derived onto `struct` or `union`")
         }
     }
 }
 
-fn derive_enum_read_impl(
+fn derive_enum_read_write_impl(
     enum_name: &Ident,
     data: &DataEnum,
     generics: &Generics,
@@ -28,15 +28,15 @@ fn derive_enum_read_impl(
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let repr = repr.expect("A `#repr(…)` attribute must be present");
-    let parser_combinator = proc_macro2::Ident::new(
-        match repr.to_string().as_str() {
-            "u8" => "read_u8",
-            "u16" => "read_u16",
-            "u32" => "read_u32",
-            repr => panic!("`Read` does not handle the `{repr}` representation yet"),
-        },
-        proc_macro2::Span::call_site(),
-    );
+    let (reader, writer) = match repr.to_string().as_str() {
+        "u8" => ("read_u8", "write_u8"),
+        "u16" => ("read_u16", "write_u16"),
+        "u32" => ("read_u32", "write_u32"),
+        repr => panic!("`Read` does not handle the `{repr}` representation yet"),
+    };
+
+    let reader = proc_macro2::Ident::new(reader, proc_macro2::Span::call_site());
+    let writer = proc_macro2::Ident::new(writer, proc_macro2::Span::call_site());
 
     let (parser_logic, variants): (Vec<_>, Vec<_>) = data
         .variants
@@ -75,7 +75,7 @@ fn derive_enum_read_impl(
                 N: crate::Number,
                 E: ::nom::error::ParseError<crate::Input<'a>>,
             {
-                let (input, discriminant) = N::#parser_combinator::<E>(input)?;
+                let (input, discriminant) = N::#reader::<E>(input)?;
 
                 Ok((
                     input,
@@ -87,20 +87,61 @@ fn derive_enum_read_impl(
             }
         }
 
+        impl #impl_generics crate::write::Write for #enum_name #ty_generics
+        #where_clause
+        {
+            fn write<N, B>(&self, buffer: &mut B) -> std::io::Result<usize>
+            where
+                N: crate::Number,
+                B: std::io::Write,
+            {
+                buffer.write(&N::#writer(*self as _))
+            }
+        }
+
         #[test]
         fn #test_name() {
+            use crate::Write;
+
             #(
                 {
-                    let input: #repr = #enum_name::#variants as _;
+                    let input = #enum_name::#variants as #repr;
 
-                    assert_eq!(
-                        #enum_name::read::<crate::LittleEndian, ()>(&input.to_le_bytes()[..]),
-                        Ok((&[] as &[u8], #enum_name::#variants))
-                    );
-                    assert_eq!(
-                        #enum_name::read::<crate::BigEndian, ()>(&input.to_be_bytes()[..]),
-                        Ok((&[] as &[u8], #enum_name::#variants))
-                    );
+                    // Read as big endian.
+                    {
+                        assert_eq!(
+                            #enum_name::read::<crate::BigEndian, ()>(&input.to_be_bytes()),
+                            Ok((&[] as &[u8], #enum_name::#variants)),
+                            "read as big endian",
+                        );
+                    }
+
+                    // Read as little endian.
+                    {
+                        assert_eq!(
+                            #enum_name::read::<crate::LittleEndian, ()>(&input.to_le_bytes()),
+                            Ok((&[] as &[u8], #enum_name::#variants)),
+                            "read as little endian",
+                        );
+                    }
+
+                    // Write as big endian.
+                    {
+                        let mut buffer = Vec::new();
+
+                        #enum_name::#variants.write::<crate::BigEndian, _>(&mut buffer).unwrap();
+
+                        assert_eq!(buffer, input.to_be_bytes(), "write as big endian");
+                    }
+
+                    // Write as little endian.
+                    {
+                        let mut buffer = Vec::new();
+
+                        #enum_name::#variants.write::<crate::LittleEndian, _>(&mut buffer).unwrap();
+
+                        assert_eq!(buffer, input.to_le_bytes(), "write as little endian");
+                    }
                 }
             )*
         }

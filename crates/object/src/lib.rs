@@ -20,9 +20,10 @@ mod combinators;
 pub mod elf64;
 mod endianness;
 pub mod slice;
-pub mod write;
+mod write;
 
 pub use endianness::*;
+pub use write::Write;
 
 /// Represent the input type of the parsers.
 pub type Input<'a> = &'a [u8];
