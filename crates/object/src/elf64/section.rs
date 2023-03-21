@@ -167,7 +167,7 @@ pub enum SectionFlag {
     /// The section is allocated in memory image of program.
     Allocable = 0x02,
     /// The section contains executable instructions.
-    Executale = 0x04,
+    Executable = 0x04,
     /// The sectionn might be merged.
     Merge = 0x10,
     /// The section contains null-terminated strings.
@@ -204,6 +204,16 @@ impl SectionFlag {
             .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
 
         Ok((input, flags))
+    }
+}
+
+impl Write for SectionFlags {
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    where
+        N: Number,
+        B: io::Write,
+    {
+        buffer.write(&N::write_u64(self.bits()))
     }
 }
 
@@ -352,6 +362,33 @@ mod tests {
                     ),
                 }
             ))
+        );
+    }
+
+    #[test]
+    fn test_section_flag() {
+        macro_rules! test {
+            ( $( $input:expr => $result:expr ),* $(,)? ) => {{
+                $(
+                    assert_read_write!(
+                        SectionFlag::read_bits($input ( as u64 ))
+                        <=>
+                        SectionFlags::from_bits($result as _).unwrap()
+                    );
+                )*
+            }};
+        }
+
+        test!(
+            0x01 => SectionFlag::Writable,
+            0x02 => SectionFlag::Allocable,
+            0x04 => SectionFlag::Executable,
+            0x10 => SectionFlag::Merge,
+            0x20 => SectionFlag::Strings,
+            0x80 => SectionFlag::LinkOrder,
+            0x100 => SectionFlag::OsNonConforming,
+            0x200 => SectionFlag::IsPartOfAGroup,
+            0x400 => SectionFlag::HasThreadLocalData,
         );
     }
 
