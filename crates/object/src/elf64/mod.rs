@@ -146,10 +146,7 @@ impl Write for Alignment {
         N: Number,
         B: io::Write,
     {
-        buffer.write(&match self.0 {
-            Some(alignment) => N::write_u64(alignment.get()),
-            None => N::write_u64(0),
-        })
+        buffer.write(&N::write_u64(self.0.map_or(0, NonZeroU64::get)))
     }
 }
 
