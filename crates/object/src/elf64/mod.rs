@@ -160,7 +160,7 @@ mod tests {
     const EXIT_FILE: &'static [u8] = include_bytes!("../../tests/fixtures/exit_elf_amd64.o");
 
     #[test]
-    fn test_address_read() {
+    fn test_address() {
         assert_read_write!(Address::read(42u64) <=> Address(42));
         assert_read_write!(Address::read_u32(42u32 ~ 42u64) <=> Address(42));
         assert_read!(Address::maybe_read(42u64) <=> Some(Address(42)));
