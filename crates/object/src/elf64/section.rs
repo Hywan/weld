@@ -309,7 +309,34 @@ impl Write for SectionIndex {
         N: Number,
         B: io::Write,
     {
+        self.write_u32::<N, B>(buffer)
+    }
+
+    fn write_u32<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    where
+        N: Number,
+        B: io::Write,
+    {
         buffer.write(&N::write_u32(match self {
+            Self::Undefined => 0x0000,
+            Self::LowProcessorSpecific => 0xff00,
+            Self::HighProcessorSpecific => 0xff1f,
+            Self::LowEnvironmentSpecific => 0xff20,
+            Self::HighEnvironmentSpecific => 0xff3f,
+            Self::Absolute => 0xfff1,
+            Self::Common => 0xfff2,
+            Self::Ok(index) => {
+                (*index).try_into().expect("Failed to cast the section index from `usize` to `u32`")
+            }
+        }))
+    }
+
+    fn write_u16<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    where
+        N: Number,
+        B: io::Write,
+    {
+        buffer.write(&N::write_u16(match self {
             Self::Undefined => 0x0000,
             Self::LowProcessorSpecific => 0xff00,
             Self::HighProcessorSpecific => 0xff1f,

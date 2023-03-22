@@ -23,4 +23,14 @@ pub trait Write {
     {
         self.write::<N, B>(buffer)
     }
+
+    /// Write part of `self` into the `buffer`, where `self` has been read from
+    /// a `u16`.
+    fn write_u16<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    where
+        N: Number,
+        B: io::Write,
+    {
+        self.write::<N, B>(buffer)
+    }
 }

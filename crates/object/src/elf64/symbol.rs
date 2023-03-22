@@ -4,7 +4,7 @@ use bstr::BStr;
 use nom::Offset;
 
 use super::{Address, SectionIndex};
-use crate::{combinators::*, BigEndian, Endianness, Input, LittleEndian, Number, Result};
+use crate::{combinators::*, BigEndian, Endianness, Input, LittleEndian, Number, Result, Write};
 
 /// A symbol.
 #[derive(Debug, PartialEq, Eq)]
@@ -76,6 +76,46 @@ impl<'a> Symbol<'a> {
                 size,
             },
         ))
+    }
+}
+
+impl<'a> Write for Symbol<'a> {
+    fn write<N, B>(&self, buffer: &mut B) -> std::io::Result<usize>
+    where
+        N: Number,
+        B: std::io::Write,
+    {
+        self.name_offset.write_u32::<N, _>(buffer)?;
+
+        let binding: u8 = match self.binding {
+            SymbolBinding::Local => 0x00,
+            SymbolBinding::Global => 0x01,
+            SymbolBinding::Weak => 0x02,
+            SymbolBinding::LowEnvironmentSpecific => 0x0a,
+            SymbolBinding::HighEnvironmentSpecific => 0x0c,
+            SymbolBinding::LowProcessorSpecific => 0x0d,
+            SymbolBinding::HighProcessorSpecific => 0x0f,
+        };
+
+        let r#type: u8 = match self.r#type {
+            SymbolType::NoType => 0x00,
+            SymbolType::Object => 0x01,
+            SymbolType::Function => 0x02,
+            SymbolType::Section => 0x03,
+            SymbolType::File => 0x04,
+            SymbolType::LowEnvironmentSpecific => 0x0a,
+            SymbolType::HighEnvironmentSpecific => 0x0c,
+            SymbolType::LowProcessorSpecific => 0x0d,
+            SymbolType::HighProcessorSpecific => 0x0f,
+        };
+
+        let binding_and_type = (binding << 4) | (r#type & 0x0f);
+
+        buffer.write(&N::write_u8(binding_and_type))?;
+        buffer.write(&N::write_u8(0))?;
+        self.section_index_where_symbol_is_defined.write_u16::<N, _>(buffer)?;
+        self.value.write::<N, _>(buffer)?;
+        buffer.write(&N::write_u64(self.size))
     }
 }
 
@@ -260,21 +300,22 @@ mod tests {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
         ];
 
-        assert_eq!(
-            Symbol::read::<BigEndian, ()>(input),
-            Ok((
-                &[] as &[u8],
-                Symbol {
-                    name: None,
-                    name_offset: Address(1),
-                    binding: SymbolBinding::Global,
-                    r#type: SymbolType::Function,
-                    section_index_where_symbol_is_defined: SectionIndex::Ok(2),
-                    value: Address(7),
-                    size: 1,
-                }
-            ))
-        );
+        let symbol = Symbol {
+            name: None,
+            name_offset: Address(1),
+            binding: SymbolBinding::Global,
+            r#type: SymbolType::Function,
+            section_index_where_symbol_is_defined: SectionIndex::Ok(2),
+            value: Address(7),
+            size: 1,
+        };
+
+        let mut buffer = Vec::new();
+        symbol.write::<BigEndian, _>(&mut buffer).unwrap();
+
+        assert_eq!(buffer, input);
+
+        assert_eq!(Symbol::read::<BigEndian, ()>(input), Ok((&[] as &[u8], symbol)));
     }
 
     #[test]
