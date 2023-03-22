@@ -61,7 +61,7 @@ impl<'a> Program<'a> {
             Alignment::read::<N, _>,
         ))(input)?;
 
-        let program_header = Self {
+        let program = Self {
             r#type,
             offset,
             virtual_address,
@@ -80,7 +80,7 @@ impl<'a> Program<'a> {
             ),
         };
 
-        Ok((input, program_header))
+        Ok((input, program))
     }
 }
 

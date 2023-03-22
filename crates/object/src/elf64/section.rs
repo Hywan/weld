@@ -80,7 +80,7 @@ impl<'a> Section<'a> {
             None
         };
 
-        let section_header = Self {
+        let section = Self {
             name: None,
             name_offset,
             r#type,
@@ -100,7 +100,7 @@ impl<'a> Section<'a> {
             ),
         };
 
-        Ok((input, section_header))
+        Ok((input, section))
     }
 }
 
