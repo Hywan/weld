@@ -109,7 +109,7 @@ impl<'a> File<'a> {
                 .chunks_exact(ph_entry_size as usize)
                 .take(ph_number as usize)
             {
-                let (_, ph) = Program::read::<N, _>(file, ph_slice)?;
+                let (_, ph) = Program::read::<N, _>(ph_slice, file)?;
                 programs.push(ph);
             }
         }

@@ -7,7 +7,7 @@ use super::{Address, Alignment, Data, DataType};
 use crate::{combinators::*, Input, Number, Result, Write};
 
 /// Program.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Program<'a> {
     /// Identifies the type of the segment.
     pub r#type: ProgramType,
@@ -21,9 +21,9 @@ pub struct Program<'a> {
     /// physical address.
     pub physical_address: Option<Address>,
     /// Size in bytes of the segment in the file image. May be 0.
-    pub segment_size_in_file_image: u64,
+    pub segment_size_in_file_image: Address,
     /// Size in bytes of the segment in memory. May be 0.
-    pub segment_size_in_memory: u64,
+    pub segment_size_in_memory: Address,
     /// 0 and 1 specify no alignment. Otherwise should be a positive,
     /// integral power of 2, with `virtual_address` equating `offset` modulus
     /// `alignment`.
@@ -33,7 +33,7 @@ pub struct Program<'a> {
 }
 
 impl<'a> Program<'a> {
-    pub fn read<N, E>(file: Input<'a>, input: Input<'a>) -> Result<'a, Self, E>
+    pub fn read<N, E>(input: Input<'a>, file: Input<'a>) -> Result<'a, Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,
@@ -56,8 +56,8 @@ impl<'a> Program<'a> {
             Address::read::<N, _>,
             Address::read::<N, _>,
             Address::maybe_read::<N, _>,
-            N::read_u64,
-            N::read_u64,
+            Address::read::<N, _>,
+            Address::read::<N, _>,
             Alignment::read::<N, _>,
         ))(input)?;
 
@@ -81,6 +81,33 @@ impl<'a> Program<'a> {
         };
 
         Ok((input, program_header))
+    }
+}
+
+impl<'a> Write for Program<'a> {
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    where
+        N: Number,
+        B: io::Write,
+    {
+        self.r#type.write::<N, _>(buffer)?;
+        self.segment_flags.write::<N, _>(buffer)?;
+        self.offset.write::<N, _>(buffer)?;
+        self.virtual_address.write::<N, _>(buffer)?;
+
+        match self.physical_address {
+            Some(physical_address) => {
+                physical_address.write::<N, _>(buffer)?;
+            }
+
+            None => {
+                buffer.write(&N::write_u64(0))?;
+            }
+        }
+
+        self.segment_size_in_file_image.write::<N, _>(buffer)?;
+        self.segment_size_in_memory.write::<N, _>(buffer)?;
+        self.alignment.write::<N, _>(buffer)
     }
 }
 
@@ -145,7 +172,54 @@ impl Write for ProgramFlags {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::num::NonZeroU64;
+
+    use super::{super::DataType, *};
+    use crate::{BigEndian, Endianness};
+
+    #[test]
+    fn test_section() {
+        #[rustfmt::skip]
+        let input: &[u8] = &[
+            // Type.
+            0x00, 0x00, 0x00, 0x01,
+            // Flag.
+            0x00, 0x00, 0x00, 0x05,
+            // Offset.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            // Virtual address.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07,
+            // Physical address.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            // Segment size in file image.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05,
+            // Segment size in memory.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            // Alignment.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
+        ];
+
+        let file: &[u8] = &[0x0, 0x61, 0x62, 0x63, 0x0];
+
+        let program = Program {
+            r#type: ProgramType::Load,
+            offset: Address(0),
+            virtual_address: Address(7),
+            physical_address: None,
+            segment_size_in_file_image: Address(5),
+            segment_size_in_memory: Address(0),
+            alignment: Alignment(Some(NonZeroU64::new(512).unwrap())),
+            segment_flags: ProgramFlag::Read | ProgramFlag::Execute,
+            data: Data::new(Cow::Borrowed(&file[..]), DataType::Unspecified, Endianness::Big, None),
+        };
+
+        let mut buffer = Vec::new();
+        program.write::<BigEndian, _>(&mut buffer).unwrap();
+
+        assert_eq!(buffer, input);
+
+        assert_eq!(Program::read::<BigEndian, ()>(input, file), Ok((&[] as &[u8], program)));
+    }
 
     #[test]
     fn test_section_flag() {
