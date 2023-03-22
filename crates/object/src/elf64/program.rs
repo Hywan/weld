@@ -1,10 +1,10 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, io};
 
 use enumflags2::{bitflags, BitFlags};
 use weld_object_macros::ReadWrite;
 
 use super::{Address, Alignment, Data, DataType};
-use crate::{combinators::*, Input, Number, Result};
+use crate::{combinators::*, Input, Number, Result, Write};
 
 /// Program.
 #[derive(Debug)]
@@ -103,7 +103,7 @@ pub enum ProgramType {
     /// Segment containing program header table itself.
     ProgramHeader = 0x06,
     /// Thread-Local Storage template.
-    ThreadLocalStraoge = 0x07,
+    ThreadLocalStorage = 0x07,
 }
 
 /// Program flag.
@@ -130,5 +130,43 @@ impl ProgramFlag {
             .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
 
         Ok((input, flags))
+    }
+}
+
+impl Write for ProgramFlags {
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    where
+        N: Number,
+        B: io::Write,
+    {
+        buffer.write(&N::write_u32(self.bits()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_section_flag() {
+        macro_rules! test {
+            ( $( $input:expr => $result:expr ),* $(,)? ) => {{
+                $(
+                    let input: u32 = $input;
+
+                    assert_read_write!(
+                        ProgramFlag::read_bits(input)
+                        <=>
+                        ProgramFlags::from_bits($result as _).unwrap()
+                    );
+                )*
+            }};
+        }
+
+        test!(
+            0x1 => ProgramFlag::Execute,
+            0x2 => ProgramFlag::Write,
+            0x4 => ProgramFlag::Read,
+        );
     }
 }
