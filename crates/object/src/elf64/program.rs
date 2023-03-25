@@ -92,12 +92,12 @@ impl<'a> Write for Program<'a> {
     {
         self.r#type.write::<N, _>(buffer)?;
         self.segment_flags.write::<N, _>(buffer)?;
-        self.offset.write::<N, _>(buffer)?;
-        self.virtual_address.write::<N, _>(buffer)?;
+        <Address as Write<u64>>::write::<N, _>(&self.offset, buffer)?;
+        <Address as Write<u64>>::write::<N, _>(&self.virtual_address, buffer)?;
 
         match self.physical_address {
             Some(physical_address) => {
-                physical_address.write::<N, _>(buffer)?;
+                <Address as Write<u64>>::write::<N, _>(&physical_address, buffer)?;
             }
 
             None => {
@@ -105,8 +105,8 @@ impl<'a> Write for Program<'a> {
             }
         }
 
-        self.segment_size_in_file_image.write::<N, _>(buffer)?;
-        self.segment_size_in_memory.write::<N, _>(buffer)?;
+        <Address as Write<u64>>::write::<N, _>(&self.segment_size_in_file_image, buffer)?;
+        <Address as Write<u64>>::write::<N, _>(&self.segment_size_in_memory, buffer)?;
         self.alignment.write::<N, _>(buffer)
     }
 }
@@ -229,9 +229,11 @@ mod tests {
                     let input: u32 = $input;
 
                     assert_read_write!(
-                        ProgramFlag::read_bits(input)
+                        ProgramFlag::read_bits(;to_bytes; input)
                         <=>
-                        ProgramFlags::from_bits($result as _).unwrap()
+                        ( ProgramFlags::from_bits($result as _).unwrap() )
+                        <=>
+                        Write<()>
                     );
                 )*
             }};

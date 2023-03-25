@@ -53,7 +53,7 @@ impl Address {
     }
 }
 
-impl Write for Address {
+impl Write<u64> for Address {
     fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
     where
         N: Number,
@@ -61,8 +61,10 @@ impl Write for Address {
     {
         buffer.write(&N::write_u64(self.0))
     }
+}
 
-    fn write_u32<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+impl Write<u32> for Address {
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
     where
         N: Number,
         B: io::Write,
@@ -161,8 +163,12 @@ mod tests {
 
     #[test]
     fn test_address() {
-        assert_read_write!(Address::read(42u64) <=> Address(42));
-        assert_read_write!(Address::read_u32(42u32 ~ 42u64) <=> Address(42));
+        assert_read_write!(
+            Address::read(;to_bytes; 42u64 ) <=> ( Address(42) ) <=> Write<u64>
+        );
+        assert_read_write!(
+            Address::read_u32(;to_bytes; 42u32 ) <=> ( Address(42) ) <=> Write<u32>
+        );
         assert_read!(Address::maybe_read(42u64) <=> Some(Address(42)));
         assert_read!(Address::maybe_read(0u64) <=> None);
     }
@@ -170,11 +176,17 @@ mod tests {
     #[test]
     fn test_alignment() {
         // No alignment.
-        assert_read_write!(Alignment::read(0u64) <=> Alignment(None));
+        assert_read_write!(
+            Alignment::read(;to_bytes; 0u64) <=> ( Alignment(None) ) <=> Write<()>
+        );
 
         // Some value alignment.
         assert_read_write!(
-            Alignment::read(512u64) <=> Alignment(Some(NonZeroU64::new(512).unwrap()))
+            Alignment::read(;to_bytes; 512u64)
+            <=>
+            ( Alignment(Some(NonZeroU64::new(512).unwrap())) )
+            <=>
+            Write<()>
         );
 
         // Some invalid (because not a power of two) alignment

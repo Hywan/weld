@@ -110,13 +110,13 @@ impl<'a> Write for Section<'a> {
         N: Number,
         B: io::Write,
     {
-        self.name_offset.write_u32::<N, _>(buffer)?;
+        <Address as Write<u32>>::write::<N, _>(&self.name_offset, buffer)?;
         self.r#type.write::<N, _>(buffer)?;
         self.flags.write::<N, _>(buffer)?;
-        self.virtual_address.write::<N, _>(buffer)?;
-        self.offset.write::<N, _>(buffer)?;
-        self.segment_size_in_file_image.write::<N, _>(buffer)?;
-        self.link.write_u32::<N, _>(buffer)?;
+        <Address as Write<u64>>::write::<N, _>(&self.virtual_address, buffer)?;
+        <Address as Write<u64>>::write::<N, _>(&self.offset, buffer)?;
+        <Address as Write<u64>>::write::<N, _>(&self.segment_size_in_file_image, buffer)?;
+        <SectionIndex as Write<u32>>::write::<N, _>(&self.link, buffer)?;
         buffer.write(&N::write_u32(self.information))?;
         self.alignment.write::<N, _>(buffer)?;
         buffer.write(&N::write_u64(self.entity_size.map_or(0, NonZeroU64::get)))
@@ -303,16 +303,8 @@ impl SectionIndex {
     }
 }
 
-impl Write for SectionIndex {
+impl Write<u32> for SectionIndex {
     fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
-    where
-        N: Number,
-        B: io::Write,
-    {
-        self.write_u32::<N, B>(buffer)
-    }
-
-    fn write_u32<N, B>(&self, buffer: &mut B) -> io::Result<usize>
     where
         N: Number,
         B: io::Write,
@@ -330,8 +322,10 @@ impl Write for SectionIndex {
             }
         }))
     }
+}
 
-    fn write_u16<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+impl Write<u16> for SectionIndex {
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
     where
         N: Number,
         B: io::Write,
@@ -415,9 +409,11 @@ mod tests {
                     let input: u64 = $input;
 
                     assert_read_write!(
-                        SectionFlag::read_bits(input)
+                        SectionFlag::read_bits(;to_bytes; input)
                         <=>
-                        SectionFlags::from_bits($result as _).unwrap()
+                        ( SectionFlags::from_bits($result as _).unwrap() )
+                        <=>
+                        Write<()>
                     );
                 )*
             }};
@@ -442,21 +438,23 @@ mod tests {
             ( $( $input:expr => $result:expr ),* $(,)? ) => {{
                 $(
                     let input: u16 = $input;
-                    let real_input: u32 = input as _;
 
                     assert_read_write!(
-                        SectionIndex::read_u16(input ~ real_input)
+                        SectionIndex::read_u16(;to_bytes; input)
                         <=>
-                        $result
+                        ( $result )
+                        <=>
+                        Write<u16>
                     );
 
                     let input: u32 = $input;
-                    let real_input: u32 = input;
 
                     assert_read_write!(
-                        SectionIndex::read_u32(input ~ real_input)
+                        SectionIndex::read_u32(;to_bytes; input)
                         <=>
-                        $result
+                        ( $result )
+                        <=>
+                        Write<u32>
                     );
                 )*
             }};
