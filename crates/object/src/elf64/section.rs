@@ -110,13 +110,13 @@ impl<'a> Write for Section<'a> {
         N: Number,
         B: io::Write,
     {
-        <Address as Write<u32>>::write::<N, _>(&self.name_offset, buffer)?;
+        <_ as Write<u32>>::write::<N, _>(&self.name_offset, buffer)?;
         self.r#type.write::<N, _>(buffer)?;
         self.flags.write::<N, _>(buffer)?;
-        <Address as Write<u64>>::write::<N, _>(&self.virtual_address, buffer)?;
-        <Address as Write<u64>>::write::<N, _>(&self.offset, buffer)?;
-        <Address as Write<u64>>::write::<N, _>(&self.segment_size_in_file_image, buffer)?;
-        <SectionIndex as Write<u32>>::write::<N, _>(&self.link, buffer)?;
+        <_ as Write<u64>>::write::<N, _>(&self.virtual_address, buffer)?;
+        <_ as Write<u64>>::write::<N, _>(&self.offset, buffer)?;
+        <_ as Write<u64>>::write::<N, _>(&self.segment_size_in_file_image, buffer)?;
+        <_ as Write<u32>>::write::<N, _>(&self.link, buffer)?;
         buffer.write(&N::write_u32(self.information))?;
         self.alignment.write::<N, _>(buffer)?;
         buffer.write(&N::write_u64(self.entity_size.map_or(0, NonZeroU64::get)))

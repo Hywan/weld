@@ -92,12 +92,12 @@ impl<'a> Write for Program<'a> {
     {
         self.r#type.write::<N, _>(buffer)?;
         self.segment_flags.write::<N, _>(buffer)?;
-        <Address as Write<u64>>::write::<N, _>(&self.offset, buffer)?;
-        <Address as Write<u64>>::write::<N, _>(&self.virtual_address, buffer)?;
+        <_ as Write<u64>>::write::<N, _>(&self.offset, buffer)?;
+        <_ as Write<u64>>::write::<N, _>(&self.virtual_address, buffer)?;
 
         match self.physical_address {
             Some(physical_address) => {
-                <Address as Write<u64>>::write::<N, _>(&physical_address, buffer)?;
+                <_ as Write<u64>>::write::<N, _>(&physical_address, buffer)?;
             }
 
             None => {
@@ -105,8 +105,8 @@ impl<'a> Write for Program<'a> {
             }
         }
 
-        <Address as Write<u64>>::write::<N, _>(&self.segment_size_in_file_image, buffer)?;
-        <Address as Write<u64>>::write::<N, _>(&self.segment_size_in_memory, buffer)?;
+        <_ as Write<u64>>::write::<N, _>(&self.segment_size_in_file_image, buffer)?;
+        <_ as Write<u64>>::write::<N, _>(&self.segment_size_in_memory, buffer)?;
         self.alignment.write::<N, _>(buffer)
     }
 }

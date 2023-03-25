@@ -85,7 +85,7 @@ impl<'a> Write for Symbol<'a> {
         N: Number,
         B: std::io::Write,
     {
-        <Address as Write<u32>>::write::<N, _>(&self.name_offset, buffer)?;
+        <_ as Write<u32>>::write::<N, _>(&self.name_offset, buffer)?;
 
         let binding: u8 = match self.binding {
             SymbolBinding::Local => 0x00,
@@ -113,11 +113,8 @@ impl<'a> Write for Symbol<'a> {
 
         buffer.write(&N::write_u8(binding_and_type))?;
         buffer.write(&N::write_u8(0))?;
-        <SectionIndex as Write<u16>>::write::<N, _>(
-            &self.section_index_where_symbol_is_defined,
-            buffer,
-        )?;
-        <Address as Write<u64>>::write::<N, _>(&self.value, buffer)?;
+        <_ as Write<u16>>::write::<N, _>(&self.section_index_where_symbol_is_defined, buffer)?;
+        <_ as Write<u64>>::write::<N, _>(&self.value, buffer)?;
         buffer.write(&N::write_u64(self.size))
     }
 }
