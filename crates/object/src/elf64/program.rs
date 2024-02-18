@@ -4,7 +4,7 @@ use enumflags2::{bitflags, BitFlags};
 use weld_object_macros::ReadWrite;
 
 use super::{Address, Alignment, Data, DataType};
-use crate::{combinators::*, Input, Number, Result, Write};
+use crate::{combinators::*, Input, Number, Read, Result, Write};
 
 /// Program.
 #[derive(Debug, PartialEq)]
@@ -52,12 +52,12 @@ impl<'a> Program<'a> {
             ),
         ) = tuple((
             ProgramType::read::<N, _>,
-            ProgramFlag::read_bits::<N, _>,
-            Address::read::<N, _>,
-            Address::read::<N, _>,
-            Address::maybe_read::<N, _>,
-            Address::read::<N, _>,
-            Address::read::<N, _>,
+            ProgramFlags::read::<N, _>,
+            <Address as Read<u64>>::read::<N, _>,
+            <Address as Read<u64>>::read::<N, _>,
+            <Option<Address> as Read<u64>>::read::<N, _>,
+            <Address as Read<u64>>::read::<N, _>,
+            <Address as Read<u64>>::read::<N, _>,
             Alignment::read::<N, _>,
         ))(input)?;
 
@@ -85,28 +85,18 @@ impl<'a> Program<'a> {
 }
 
 impl<'a> Write for Program<'a> {
-    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<()>
     where
         N: Number,
         B: io::Write,
     {
         self.r#type.write::<N, _>(buffer)?;
         self.segment_flags.write::<N, _>(buffer)?;
-        <_ as Write<u64>>::write::<N, _>(&self.offset, buffer)?;
-        <_ as Write<u64>>::write::<N, _>(&self.virtual_address, buffer)?;
-
-        match self.physical_address {
-            Some(physical_address) => {
-                <_ as Write<u64>>::write::<N, _>(&physical_address, buffer)?;
-            }
-
-            None => {
-                buffer.write(&N::write_u64(0))?;
-            }
-        }
-
-        <_ as Write<u64>>::write::<N, _>(&self.segment_size_in_file_image, buffer)?;
-        <_ as Write<u64>>::write::<N, _>(&self.segment_size_in_memory, buffer)?;
+        <Address as Write<u64>>::write::<N, _>(&self.offset, buffer)?;
+        <Address as Write<u64>>::write::<N, _>(&self.virtual_address, buffer)?;
+        <Option<Address> as Write<u64>>::write::<N, _>(&self.physical_address, buffer)?;
+        <Address as Write<u64>>::write::<N, _>(&self.segment_size_in_file_image, buffer)?;
+        <Address as Write<u64>>::write::<N, _>(&self.segment_size_in_memory, buffer)?;
         self.alignment.write::<N, _>(buffer)
     }
 }
@@ -146,8 +136,8 @@ pub enum ProgramFlag {
 /// Program flags.
 pub type ProgramFlags = BitFlags<ProgramFlag>;
 
-impl ProgramFlag {
-    pub fn read_bits<'a, N, E>(input: Input<'a>) -> Result<ProgramFlags, E>
+impl Read for ProgramFlags {
+    fn read<'a, N, E>(input: Input<'a>) -> Result<ProgramFlags, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,
@@ -161,12 +151,12 @@ impl ProgramFlag {
 }
 
 impl Write for ProgramFlags {
-    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<()>
     where
         N: Number,
         B: io::Write,
     {
-        buffer.write(&N::write_u32(self.bits()))
+        buffer.write_all(&N::write_u32(self.bits()))
     }
 }
 
@@ -226,14 +216,11 @@ mod tests {
         macro_rules! test {
             ( $( $input:expr => $result:expr ),* $(,)? ) => {{
                 $(
-                    let input: u32 = $input;
-
                     assert_read_write!(
-                        ProgramFlag::read_bits(;to_bytes; input)
-                        <=>
-                        ( ProgramFlags::from_bits($result as _).unwrap() )
-                        <=>
-                        Write<()>
+                        ProgramFlags: Read<()> + Write<()> {
+                            bytes_value(auto_endian) = $input as u32,
+                            rust_value = ProgramFlags::from_bits($result as _).unwrap(),
+                        }
                     );
                 )*
             }};

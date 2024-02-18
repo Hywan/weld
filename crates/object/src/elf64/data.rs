@@ -75,11 +75,9 @@ impl<'a> Data<'a> {
 
         let name = &self.inner[offset..];
 
-        if let Some(name_end) = name.iter().position(|c| *c == 0x00) {
-            Some(Cow::Borrowed(BStr::new(&name[..name_end])))
-        } else {
-            None
-        }
+        name.iter()
+            .position(|c| *c == 0x00)
+            .map(|name_end| Cow::Borrowed(BStr::new(&name[..name_end])))
     }
 
     /// Get an iterator over symbols, if and only if the data type is

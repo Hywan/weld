@@ -19,11 +19,11 @@ mod combinators;
 #[cfg(feature = "elf64")]
 pub mod elf64;
 mod endianness;
+mod read_write;
 pub mod slice;
-mod write;
 
 pub use endianness::*;
-pub use write::Write;
+pub use read_write::{Read, Write};
 
 /// Represent the input type of the parsers.
 pub type Input<'a> = &'a [u8];

@@ -8,7 +8,7 @@ name = "weld"
 path = "src/main.rs"
 
 [dependencies]
-argh = "0.1.10"
+argh = "0.1.12"
 miette = { workspace = true }
 thiserror = { workspace = true }
 weld-errors = { path = "../errors", version = "0.1", features = ["diagnostics"] }

@@ -1,72 +1,81 @@
-macro_rules! assert_read {
-    ( $type:ident :: $reader:ident ( $input:tt ) <=> $built_type:expr ) => {
-        // Read as big endian.
-        {
-            let input = $input.to_be_bytes();
-            let value = $type::$reader::<crate::BigEndian, ()>(&input);
-
-            assert_eq!(value, Ok((&[] as &[u8], $built_type)));
-        }
-
-        // Read as little endian.
-        {
-            let input = $input.to_le_bytes();
-            let value = $type::$reader::<crate::LittleEndian, ()>(&input);
-
-            assert_eq!(value, Ok((&[] as &[u8], $built_type)));
-        }
-    };
-}
-
 macro_rules! assert_read_write {
     (
-        $reader_type:ident :: $reader:ident (
-            $( ;to_bytes; $to_bytes:expr )?
-            $( ;bytes; $bytes:expr )?
-            $( , $args:expr )*
+        $subject:ty : Read< $reader_read_from:ty > + Write< $writer_read_from:ty > {
+            bytes_value(auto_endian) = $bytes_value:expr,
+            rust_value = $rust_value:expr,
             $(,)*
-        )
-        <=>
-        (
-            $built_type:expr
-        )
-        <=>
-        Write< $writer_read_from:ty >
+        }
     ) => {
         // Big endian.
         {
-            let rust_value = $built_type;
-
-            $( let bytes = $bytes )?
-            $( let bytes = $to_bytes.to_be_bytes(); )?
-
-            let read_value = $reader_type::$reader::<crate::BigEndian, ()>(&bytes $( , $args )* );
-
-            assert_eq!(read_value, Ok((&[] as &[u8], $built_type)), "read as big endian");
+            let rust_value = $rust_value;
+            let bytes_value = $bytes_value.to_be_bytes();
 
             let mut written_value = Vec::new();
 
-            < _ as Write< $writer_read_from >>::write::<crate::BigEndian, _>(&rust_value, &mut written_value).unwrap();
+            <_ as Write<$writer_read_from>>::write::<crate::BigEndian, _>(
+                &rust_value,
+                &mut written_value,
+            )
+            .unwrap();
 
-            assert_eq!(written_value, bytes, "write as big endian");
+            assert_eq!(written_value, bytes_value, "write as big endian");
+
+            let read_value =
+                <$subject as Read<$reader_read_from>>::read::<crate::BigEndian, ()>(&bytes_value);
+
+            assert_eq!(read_value, Ok((&[] as &[u8], rust_value)), "read as big endian");
         }
 
         // Little endian.
         {
-            let rust_value = $built_type;
-
-            $( let bytes = $bytes )?
-            $( let bytes = $to_bytes.to_le_bytes(); )?
-
-            let read_value = $reader_type::$reader::<crate::LittleEndian, ()>(&bytes $( , $args )* );
-
-            assert_eq!(read_value, Ok((&[] as &[u8], $built_type)), "read as little endian");
+            let rust_value = $rust_value;
+            let bytes_value = $bytes_value.to_le_bytes();
 
             let mut written_value = Vec::new();
 
-            < _ as Write< $writer_read_from >>::write::<crate::LittleEndian, _>(&rust_value, &mut written_value).unwrap();
+            <_ as Write<$writer_read_from>>::write::<crate::LittleEndian, _>(
+                &rust_value,
+                &mut written_value,
+            )
+            .unwrap();
 
-            assert_eq!(written_value, bytes, "write as little endian");
+            assert_eq!(written_value, bytes_value, "write as little endian");
+
+            let read_value = <$subject as Read<$reader_read_from>>::read::<crate::LittleEndian, ()>(
+                &bytes_value,
+            );
+
+            assert_eq!(read_value, Ok((&[] as &[u8], rust_value)), "read as little endian");
+        }
+    };
+
+    (
+        $subject:ty : Read< $reader_read_from:ty > + Write< $writer_read_from:ty > {
+            bytes_value(big_endian) = $bytes_value:expr,
+            rust_value = $rust_value:expr,
+            $(,)*
+        }
+    ) => {
+        // Big endian.
+        {
+            let rust_value = $rust_value;
+            let bytes_value = $bytes_value;
+
+            let mut written_value = Vec::new();
+
+            <_ as Write<$writer_read_from>>::write::<crate::BigEndian, _>(
+                &rust_value,
+                &mut written_value,
+            )
+            .unwrap();
+
+            assert_eq!(written_value, bytes_value, "write as big endian");
+
+            let read_value =
+                <$subject as Read<$reader_read_from>>::read::<crate::BigEndian, ()>(&bytes_value);
+
+            assert_eq!(read_value, Ok((&[] as &[u8], rust_value)), "read as big endian");
         }
     };
 }

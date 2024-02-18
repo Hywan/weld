@@ -4,7 +4,9 @@ use bstr::BStr;
 use nom::Offset;
 
 use super::{Address, SectionIndex};
-use crate::{combinators::*, BigEndian, Endianness, Input, LittleEndian, Number, Result, Write};
+use crate::{
+    combinators::*, BigEndian, Endianness, Input, LittleEndian, Number, Read, Result, Write,
+};
 
 /// A symbol.
 #[derive(Debug, PartialEq, Eq)]
@@ -37,11 +39,11 @@ pub struct Symbol<'a> {
     pub size: u64,
 }
 
-impl<'a> Symbol<'a> {
-    pub fn read<N, E>(input: Input<'a>) -> Result<'a, Self, E>
+impl<'a> Read for Symbol<'a> {
+    fn read<'r, N, E>(input: Input<'r>) -> Result<'r, Self, E>
     where
         N: Number,
-        E: ParseError<Input<'a>>,
+        E: ParseError<Input<'r>>,
     {
         let (
             input,
@@ -55,12 +57,12 @@ impl<'a> Symbol<'a> {
                 size,
             ),
         ) = tuple((
-            Address::read_u32::<N, _>,
+            <Address as Read<u32>>::read::<N, _>,
             SymbolBinding::read::<N, _>,
             SymbolType::read::<N, _>,
             tag(&[0x00]),
-            SectionIndex::read_u16::<N, _>,
-            Address::read::<N, _>,
+            <SectionIndex as Read<u16>>::read::<N, _>,
+            <Address as Read<u64>>::read::<N, _>,
             N::read_u64,
         ))(input)?;
 
@@ -80,12 +82,12 @@ impl<'a> Symbol<'a> {
 }
 
 impl<'a> Write for Symbol<'a> {
-    fn write<N, B>(&self, buffer: &mut B) -> std::io::Result<usize>
+    fn write<N, B>(&self, buffer: &mut B) -> std::io::Result<()>
     where
         N: Number,
         B: std::io::Write,
     {
-        <_ as Write<u32>>::write::<N, _>(&self.name_offset, buffer)?;
+        <Address as Write<u32>>::write::<N, _>(&self.name_offset, buffer)?;
 
         let binding: u8 = match self.binding {
             SymbolBinding::Local => 0x00,
@@ -111,11 +113,14 @@ impl<'a> Write for Symbol<'a> {
 
         let binding_and_type = (binding << 4) | (r#type & 0x0f);
 
-        buffer.write(&N::write_u8(binding_and_type))?;
-        buffer.write(&N::write_u8(0))?;
-        <_ as Write<u16>>::write::<N, _>(&self.section_index_where_symbol_is_defined, buffer)?;
-        <_ as Write<u64>>::write::<N, _>(&self.value, buffer)?;
-        buffer.write(&N::write_u64(self.size))
+        buffer.write_all(&N::write_u8(binding_and_type))?;
+        buffer.write_all(&N::write_u8(0))?;
+        <SectionIndex as Write<u16>>::write::<N, _>(
+            &self.section_index_where_symbol_is_defined,
+            buffer,
+        )?;
+        <Address as Write<u64>>::write::<N, _>(&self.value, buffer)?;
+        buffer.write_all(&N::write_u64(self.size))
     }
 }
 
@@ -138,8 +143,8 @@ pub enum SymbolBinding {
     HighProcessorSpecific = 0x0f,
 }
 
-impl SymbolBinding {
-    pub fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+impl Read for SymbolBinding {
+    fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,
@@ -185,8 +190,8 @@ pub enum SymbolType {
     HighProcessorSpecific = 0x0f,
 }
 
-impl SymbolType {
-    pub fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+impl Read for SymbolType {
+    fn read<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,
@@ -310,28 +315,26 @@ mod tests {
             size: 1,
         };
 
-        let mut buffer = Vec::new();
-        symbol.write::<BigEndian, _>(&mut buffer).unwrap();
-
-        assert_eq!(buffer, input);
-
-        assert_eq!(Symbol::read::<BigEndian, ()>(input), Ok((&[] as &[u8], symbol)));
+        assert_read_write!(
+            Symbol: Read<()> + Write<()> {
+                bytes_value(big_endian) = input,
+                rust_value = symbol,
+            }
+        );
     }
 
     #[test]
     fn test_symbol_binding() {
         macro_rules! test {
-            ($input:expr => $result:expr) => {{
-                let input: u8 = $input << 4;
-                assert_eq!(
-                    SymbolBinding::read::<crate::BigEndian, ()>(&[input]),
-                    Ok((&[input] as &[u8], $result))
-                    //    ^~~~~ doesn't consume the input!
-                );
-            }};
-
-            ( $( $input:expr => $result:expr ),* $(,)? ) => {
-                $( test!($input => $result); )*
+            ( $( $input:expr => $result:expr ),* $(,)* ) => {
+                $(
+                    let input: u8 = $input << 4;
+                    assert_eq!(
+                        SymbolBinding::read::<crate::BigEndian, ()>(&[input]),
+                        Ok((&[input] as &[u8], $result))
+                        //    ^~~~~ doesn't consume the input!
+                    );
+                )*
             };
         }
 
@@ -349,16 +352,14 @@ mod tests {
     #[test]
     fn test_symbol_type() {
         macro_rules! test {
-            ($input:expr => $result:expr) => {{
-                let input: u8 = $input & 0x0f;
-                assert_eq!(
-                    SymbolType::read::<crate::BigEndian, ()>(&[input]),
-                    Ok((&[] as &[u8], $result))
-                );
-            }};
-
-            ( $( $input:expr => $result:expr ),* $(,)? ) => {
-                $( test!($input => $result); )*
+            ( $( $input:expr => $result:expr ),* $(,)* ) => {
+                $(
+                    let input: u8 = $input & 0x0f;
+                    assert_eq!(
+                        SymbolType::read::<crate::BigEndian, ()>(&[input]),
+                        Ok((&[] as &[u8], $result))
+                    );
+                )*
             };
         }
 

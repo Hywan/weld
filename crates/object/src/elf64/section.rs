@@ -5,7 +5,7 @@ use enumflags2::{bitflags, BitFlags};
 use weld_object_macros::ReadWrite;
 
 use super::{Address, Alignment, Data};
-use crate::{combinators::*, Input, Number, Result, Write};
+use crate::{combinators::*, Input, Number, Read, Result, Write};
 
 /// Section header.
 #[derive(Debug, PartialEq)]
@@ -61,13 +61,13 @@ impl<'a> Section<'a> {
                 entity_size,
             ),
         ) = tuple((
-            Address::read_u32::<N, _>,
+            <Address as Read<u32>>::read::<N, _>,
             SectionType::read::<N, _>,
-            SectionFlag::read_bits::<N, _>,
-            Address::read::<N, _>,
-            Address::read::<N, _>,
-            Address::read::<N, _>,
-            SectionIndex::read_u32::<N, _>,
+            SectionFlags::read::<N, _>,
+            <Address as Read<u64>>::read::<N, _>,
+            <Address as Read<u64>>::read::<N, _>,
+            <Address as Read<u64>>::read::<N, _>,
+            <SectionIndex as Read<u32>>::read::<N, _>,
             N::read_u32,
             Alignment::read::<N, _>,
             N::read_u64,
@@ -105,21 +105,21 @@ impl<'a> Section<'a> {
 }
 
 impl<'a> Write for Section<'a> {
-    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<()>
     where
         N: Number,
         B: io::Write,
     {
-        <_ as Write<u32>>::write::<N, _>(&self.name_offset, buffer)?;
+        <Address as Write<u32>>::write::<N, _>(&self.name_offset, buffer)?;
         self.r#type.write::<N, _>(buffer)?;
         self.flags.write::<N, _>(buffer)?;
-        <_ as Write<u64>>::write::<N, _>(&self.virtual_address, buffer)?;
-        <_ as Write<u64>>::write::<N, _>(&self.offset, buffer)?;
-        <_ as Write<u64>>::write::<N, _>(&self.segment_size_in_file_image, buffer)?;
-        <_ as Write<u32>>::write::<N, _>(&self.link, buffer)?;
-        buffer.write(&N::write_u32(self.information))?;
+        <Address as Write<u64>>::write::<N, _>(&self.virtual_address, buffer)?;
+        <Address as Write<u64>>::write::<N, _>(&self.offset, buffer)?;
+        <Address as Write<u64>>::write::<N, _>(&self.segment_size_in_file_image, buffer)?;
+        <SectionIndex as Write<u32>>::write::<N, _>(&self.link, buffer)?;
+        buffer.write_all(&N::write_u32(self.information))?;
         self.alignment.write::<N, _>(buffer)?;
-        buffer.write(&N::write_u64(self.entity_size.map_or(0, NonZeroU64::get)))
+        buffer.write_all(&N::write_u64(self.entity_size.map_or(0, NonZeroU64::get)))
     }
 }
 
@@ -212,14 +212,14 @@ pub enum SectionFlag {
 /// Section flags.
 pub type SectionFlags = BitFlags<SectionFlag>;
 
-impl SectionFlag {
-    pub fn read_bits<'a, N, E>(input: Input<'a>) -> Result<SectionFlags, E>
+impl Read for SectionFlags {
+    fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,
     {
         let (input, flags) = N::read_u64(input)?;
-        let flags = SectionFlags::from_bits(flags)
+        let flags = Self::from_bits(flags)
             .map_err(|_| Err::Error(E::from_error_kind(input, ErrorKind::Alt)))?;
 
         Ok((input, flags))
@@ -227,12 +227,12 @@ impl SectionFlag {
 }
 
 impl Write for SectionFlags {
-    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<()>
     where
         N: Number,
         B: io::Write,
     {
-        buffer.write(&N::write_u64(self.bits()))
+        buffer.write_all(&N::write_u64(self.bits()))
     }
 }
 
@@ -259,26 +259,6 @@ pub enum SectionIndex {
 }
 
 impl SectionIndex {
-    pub fn read_u16<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
-    where
-        N: Number,
-        E: ParseError<Input<'a>>,
-    {
-        let (input, index) = N::read_u16(input)?;
-
-        Self::_read(input, index.into())
-    }
-
-    pub fn read_u32<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
-    where
-        N: Number,
-        E: ParseError<Input<'a>>,
-    {
-        let (input, index) = N::read_u32(input)?;
-
-        Self::_read(input, index)
-    }
-
     fn _read<'a, E>(input: Input<'a>, index: u32) -> Result<'a, Self, E>
     where
         E: ParseError<Input<'a>>,
@@ -303,45 +283,64 @@ impl SectionIndex {
     }
 }
 
+impl Read<u32> for SectionIndex {
+    fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+    where
+        N: Number,
+        E: ParseError<Input<'a>>,
+    {
+        let (input, index) = N::read_u32(input)?;
+
+        Self::_read(input, index)
+    }
+}
+
+impl Read<u16> for SectionIndex {
+    fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+    where
+        N: Number,
+        E: ParseError<Input<'a>>,
+    {
+        let (input, index) = N::read_u16(input)?;
+
+        Self::_read(input, index.into())
+    }
+}
+
+macro_rules! section_index_write {
+    ($section_index:ident) => {
+        match $section_index {
+            SectionIndex::Undefined => 0x0000,
+            SectionIndex::LowProcessorSpecific => 0xff00,
+            SectionIndex::HighProcessorSpecific => 0xff1f,
+            SectionIndex::LowEnvironmentSpecific => 0xff20,
+            SectionIndex::HighEnvironmentSpecific => 0xff3f,
+            SectionIndex::Absolute => 0xfff1,
+            SectionIndex::Common => 0xfff2,
+            SectionIndex::Ok(index) => {
+                (*index).try_into().expect("Failed to cast the section index from `usize` to `u32`")
+            }
+        }
+    };
+}
+
 impl Write<u32> for SectionIndex {
-    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<()>
     where
         N: Number,
         B: io::Write,
     {
-        buffer.write(&N::write_u32(match self {
-            Self::Undefined => 0x0000,
-            Self::LowProcessorSpecific => 0xff00,
-            Self::HighProcessorSpecific => 0xff1f,
-            Self::LowEnvironmentSpecific => 0xff20,
-            Self::HighEnvironmentSpecific => 0xff3f,
-            Self::Absolute => 0xfff1,
-            Self::Common => 0xfff2,
-            Self::Ok(index) => {
-                (*index).try_into().expect("Failed to cast the section index from `usize` to `u32`")
-            }
-        }))
+        buffer.write_all(&N::write_u32(section_index_write!(self)))
     }
 }
 
 impl Write<u16> for SectionIndex {
-    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<()>
     where
         N: Number,
         B: io::Write,
     {
-        buffer.write(&N::write_u16(match self {
-            Self::Undefined => 0x0000,
-            Self::LowProcessorSpecific => 0xff00,
-            Self::HighProcessorSpecific => 0xff1f,
-            Self::LowEnvironmentSpecific => 0xff20,
-            Self::HighEnvironmentSpecific => 0xff3f,
-            Self::Absolute => 0xfff1,
-            Self::Common => 0xfff2,
-            Self::Ok(index) => {
-                (*index).try_into().expect("Failed to cast the section index from `usize` to `u32`")
-            }
-        }))
+        buffer.write_all(&N::write_u16(section_index_write!(self)))
     }
 }
 
@@ -406,14 +405,11 @@ mod tests {
         macro_rules! test {
             ( $( $input:expr => $result:expr ),* $(,)? ) => {{
                 $(
-                    let input: u64 = $input;
-
                     assert_read_write!(
-                        SectionFlag::read_bits(;to_bytes; input)
-                        <=>
-                        ( SectionFlags::from_bits($result as _).unwrap() )
-                        <=>
-                        Write<()>
+                        SectionFlags: Read<()> + Write<()> {
+                            bytes_value(auto_endian) = $input as u64,
+                            rust_value = SectionFlags::from_bits($result as _).unwrap(),
+                        }
                     );
                 )*
             }};
@@ -437,24 +433,17 @@ mod tests {
         macro_rules! test {
             ( $( $input:expr => $result:expr ),* $(,)? ) => {{
                 $(
-                    let input: u16 = $input;
-
                     assert_read_write!(
-                        SectionIndex::read_u16(;to_bytes; input)
-                        <=>
-                        ( $result )
-                        <=>
-                        Write<u16>
+                        SectionIndex: Read<u16> + Write<u16> {
+                            bytes_value(auto_endian) = $input as u16,
+                            rust_value = $result,
+                        }
                     );
-
-                    let input: u32 = $input;
-
                     assert_read_write!(
-                        SectionIndex::read_u32(;to_bytes; input)
-                        <=>
-                        ( $result )
-                        <=>
-                        Write<u32>
+                        SectionIndex: Read<u32> + Write<u32> {
+                            bytes_value(auto_endian) = $input as u32,
+                            rust_value = $result,
+                        }
                     );
                 )*
             }};

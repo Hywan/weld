@@ -2,7 +2,7 @@ use std::{fmt, io, num::NonZeroU64, ops::Add};
 
 use nom::Err::Error;
 
-use crate::{combinators::*, Input, Number, Result, Write};
+use crate::{combinators::*, Input, Number, Read, Result, Write};
 
 mod data;
 mod file;
@@ -21,8 +21,8 @@ pub use symbol::*;
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Address(pub u64);
 
-impl Address {
-    pub fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+impl Read<u64> for Address {
+    fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,
@@ -31,8 +31,10 @@ impl Address {
 
         Ok((input, Address(address)))
     }
+}
 
-    pub fn read_u32<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+impl Read<u32> for Address {
+    fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,
@@ -41,37 +43,52 @@ impl Address {
 
         Ok((input, Address(address.into())))
     }
+}
 
-    pub fn maybe_read<'a, N, E>(input: Input<'a>) -> Result<Option<Self>, E>
+impl Read<u64> for Option<Address> {
+    fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,
     {
-        let (input, address) = Self::read::<N, E>(input)?;
+        let (input, address) = <Address as Read<u64>>::read::<N, E>(input)?;
 
         Ok((input, if address.0 == 0 { None } else { Some(address) }))
     }
 }
 
 impl Write<u64> for Address {
-    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<()>
     where
         N: Number,
         B: io::Write,
     {
-        buffer.write(&N::write_u64(self.0))
+        buffer.write_all(&N::write_u64(self.0))
     }
 }
 
 impl Write<u32> for Address {
-    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<()>
     where
         N: Number,
         B: io::Write,
     {
-        buffer.write(&N::write_u32(
+        buffer.write_all(&N::write_u32(
             self.0.try_into().expect("Failed to cast the alignment from `u64` to `u32`"),
         ))
+    }
+}
+
+impl Write<u64> for Option<Address> {
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<()>
+    where
+        N: Number,
+        B: io::Write,
+    {
+        match self {
+            Some(address) => <Address as Write<u64>>::write::<N, _>(address, buffer),
+            None => buffer.write_all(&N::write_u64(0)),
+        }
     }
 }
 
@@ -119,8 +136,8 @@ impl Add for Address {
 #[repr(transparent)]
 pub struct Alignment(pub Option<NonZeroU64>);
 
-impl Alignment {
-    pub fn read<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
+impl Read for Alignment {
+    fn read<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,
@@ -143,12 +160,12 @@ impl Alignment {
 }
 
 impl Write for Alignment {
-    fn write<N, B>(&self, buffer: &mut B) -> io::Result<usize>
+    fn write<N, B>(&self, buffer: &mut B) -> io::Result<()>
     where
         N: Number,
         B: io::Write,
     {
-        buffer.write(&N::write_u64(self.0.map_or(0, NonZeroU64::get)))
+        buffer.write_all(&N::write_u64(self.0.map_or(0, NonZeroU64::get)))
     }
 }
 
@@ -163,30 +180,55 @@ mod tests {
 
     #[test]
     fn test_address() {
+        // From u64.
         assert_read_write!(
-            Address::read(;to_bytes; 42u64 ) <=> ( Address(42) ) <=> Write<u64>
+            Address: Read<u64> + Write<u64> {
+                bytes_value(auto_endian) = 42u64,
+                rust_value = Address(42),
+            }
         );
+
+        // From u32.
         assert_read_write!(
-            Address::read_u32(;to_bytes; 42u32 ) <=> ( Address(42) ) <=> Write<u32>
+            Address: Read<u32> + Write<u32> {
+                bytes_value(auto_endian) = 42u32,
+                rust_value = Address(42),
+            }
         );
-        assert_read!(Address::maybe_read(42u64) <=> Some(Address(42)));
-        assert_read!(Address::maybe_read(0u64) <=> None);
+
+        // As option: Some.
+        assert_read_write!(
+            Option<Address>: Read<u64> + Write<u64> {
+                bytes_value(auto_endian) = 42u64,
+                rust_value = Some(Address(42)),
+            }
+        );
+
+        // As option: None.
+        assert_read_write!(
+            Option<Address>: Read<u64> + Write<u64> {
+                bytes_value(auto_endian) = 0u64,
+                rust_value = None,
+            }
+        );
     }
 
     #[test]
     fn test_alignment() {
         // No alignment.
         assert_read_write!(
-            Alignment::read(;to_bytes; 0u64) <=> ( Alignment(None) ) <=> Write<()>
+            Alignment: Read<()> + Write<()> {
+                bytes_value(auto_endian) = 0u64,
+                rust_value = Alignment(None),
+            }
         );
 
         // Some value alignment.
         assert_read_write!(
-            Alignment::read(;to_bytes; 512u64)
-            <=>
-            ( Alignment(Some(NonZeroU64::new(512).unwrap())) )
-            <=>
-            Write<()>
+            Alignment: Read<()> + Write<()> {
+                bytes_value(auto_endian) = 512u64,
+                rust_value = Alignment(Some(NonZeroU64::new(512).unwrap())),
+            }
         );
 
         // Some invalid (because not a power of two) alignment

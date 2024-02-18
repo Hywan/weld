@@ -10,7 +10,7 @@ fs = []
 mmap = []
 
 [dependencies]
-libc = "0.2.139"
+libc = "0.2.153"
 
 [dev-dependencies]
 futures-lite = { workspace = true }

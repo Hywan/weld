@@ -62,18 +62,18 @@ fn derive_enum_read_write_impl(
         .unzip();
 
     let test_name = proc_macro2::Ident::new(
-        &format!("test_{}", enum_name.to_string().to_lowercase()),
+        &format!("autotest_{}", enum_name.to_string().to_lowercase()),
         proc_macro2::Span::call_site(),
     );
 
     quote! {
-        impl #impl_generics #enum_name #ty_generics
+        impl #impl_generics crate::Read for #enum_name #ty_generics
         #where_clause
         {
-            pub fn read<'a, N, E>(input: crate::Input<'a>) -> crate::Result<Self, E>
+            fn read<'r, N, E>(input: crate::Input<'r>) -> crate::Result<'r, Self, E>
             where
                 N: crate::Number,
-                E: ::nom::error::ParseError<crate::Input<'a>>,
+                E: ::nom::error::ParseError<crate::Input<'r>>,
             {
                 let (input, discriminant) = N::#reader::<E>(input)?;
 
@@ -87,15 +87,15 @@ fn derive_enum_read_write_impl(
             }
         }
 
-        impl #impl_generics crate::write::Write for #enum_name #ty_generics
+        impl #impl_generics crate::Write for #enum_name #ty_generics
         #where_clause
         {
-            fn write<N, B>(&self, buffer: &mut B) -> std::io::Result<usize>
+            fn write<N, B>(&self, buffer: &mut B) -> ::std::io::Result<()>
             where
                 N: crate::Number,
-                B: std::io::Write,
+                B: ::std::io::Write,
             {
-                buffer.write(&N::#writer(*self as _))
+                buffer.write_all(&N::#writer(*self as _))
             }
         }
 
@@ -150,23 +150,22 @@ fn derive_enum_read_write_impl(
 }
 
 fn fetch_repr(attrs: &[Attribute]) -> Option<Ident> {
-    attrs
-        .iter()
-        .find_map(|attr| {
-            attr.parse_meta()
-                .map(|meta| match meta {
-                    syn::Meta::List(ref meta_list) if meta_list.path.is_ident("repr") => {
-                        meta_list.nested.first().map(|nested_meta| match nested_meta {
-                            syn::NestedMeta::Meta(syn::Meta::Path(repr_value)) => {
-                                repr_value.get_ident().cloned()
-                            }
-                            _ => panic!("`repr` seems to have an invalid value"),
-                        })
-                    }
-                    _ => None,
-                })
-                .ok()
-                .flatten()
-        })
-        .flatten()
+    attrs.iter().find_map(|attr| {
+        let mut ident = None;
+
+        if attr.path().is_ident("repr") {
+            attr.parse_nested_meta(|meta| {
+                if let Some(path_ident) = meta.path.get_ident() {
+                    ident = Some(path_ident.clone());
+
+                    Ok(())
+                } else {
+                    Err(meta.error("Unknown `repr`"))
+                }
+            })
+            .ok();
+        }
+
+        ident
+    })
 }

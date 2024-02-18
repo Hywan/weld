@@ -219,8 +219,8 @@ macro_rules! error {
             [
                 $( $accumulator )*
 
-                #[doc = "Transparent error. Please see the inner fields."]
-                #[error(transparent)]
+                #[doc = "Transparent error. Please see the inner field."]
+                #[error("{0}")]
                 $( #[cfg( $cfg )] )*
             ]
             $( $tail )*

@@ -1,7 +1,9 @@
 use weld_object_macros::ReadWrite;
 
 use super::{Address, Program, Section, SectionIndex, SectionType};
-use crate::{combinators::*, slice::SliceExt, BigEndian, Input, LittleEndian, Number, Result};
+use crate::{
+    combinators::*, slice::SliceExt, BigEndian, Input, LittleEndian, Number, Read, Result,
+};
 
 /// Object file.
 #[derive(Debug)]
@@ -89,16 +91,16 @@ impl<'a> File<'a> {
             FileType::read::<N, _>,
             Machine::read::<N, _>,
             skip(4usize),
-            Address::maybe_read::<N, _>,
-            Address::read::<N, _>,
-            Address::read::<N, _>,
+            <Option<Address> as Read<u64>>::read::<N, _>,
+            <Address as Read<u64>>::read::<N, _>,
+            <Address as Read<u64>>::read::<N, _>,
             N::read_u32,
             skip(2usize),
             N::read_u16,
             N::read_u16,
             N::read_u16,
             N::read_u16,
-            SectionIndex::read_u16::<N, _>,
+            <SectionIndex as Read<u16>>::read::<N, _>,
         ))(input)?;
 
         let mut programs = Vec::with_capacity(ph_number as usize);
@@ -139,7 +141,7 @@ impl<'a> File<'a> {
 
             let (first_sections, section_names, last_sections) =
                 // SAFETY: `first_sections` and `last_sections` aren't stored and don't outlive `sections`.
-                unsafe { sections.split_around_at_mut(index.into()) }
+                unsafe { sections.split_around_at_mut(index) }
                     // SAFETY: `unwrap`ing is safe because `sections` is not empty.
                     .unwrap();
 
