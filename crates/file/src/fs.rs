@@ -46,9 +46,8 @@ mod tests {
         block_on(async {
             let file = File::open("tests/hello.txt")?;
             let content = file.read_as_bytes().await?;
-            let bytes: &[u8] = content.as_ref();
 
-            assert_eq!(bytes, &b"abcdef"[..]);
+            assert_eq!(*content, b"abcdef"[..]);
 
             Ok(())
         })

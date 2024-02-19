@@ -67,8 +67,10 @@ pub struct MmapContent {
     length: usize,
 }
 
-impl AsRef<[u8]> for MmapContent {
-    fn as_ref(&self) -> &[u8] {
+impl Deref for MmapContent {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
         unsafe { slice::from_raw_parts(self.pointer as *const u8, self.length) }
     }
 }
@@ -97,9 +99,8 @@ mod tests {
         block_on(async {
             let file = Mmap::open("tests/hello.txt")?;
             let content = file.read_as_bytes().await?;
-            let bytes: &[u8] = content.as_ref();
 
-            assert_eq!(bytes, &b"abcdef"[..]);
+            assert_eq!(*content, b"abcdef"[..]);
 
             Ok(())
         })
