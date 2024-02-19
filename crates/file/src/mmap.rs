@@ -1,11 +1,14 @@
 //! Memmory map file reader.
 
+use rustix::{
+    mm::{mmap, munmap, MapFlags, ProtFlags},
+    param::page_size,
+};
 use std::{
     ffi::c_void,
     fs,
     future::{ready, Ready},
     io::{Error, ErrorKind},
-    os::fd::AsRawFd,
     ptr, slice,
 };
 
@@ -45,20 +48,8 @@ impl FileReader for Mmap {
         };
 
         let pointer = unsafe {
-            let pointer = libc::mmap(
-                ptr::null_mut(),
-                length as libc::size_t,
-                libc::PROT_READ,
-                libc::MAP_SHARED,
-                file.as_raw_fd(),
-                0 as libc::off_t,
-            );
-
-            if pointer == libc::MAP_FAILED {
-                return Err(Error::last_os_error());
-            }
-
-            pointer
+            mmap(ptr::null_mut(), length, ProtFlags::READ, MapFlags::SHARED, &file, 0)
+                .map_err(|errno| Error::from_raw_os_error(errno.raw_os_error()))?
         };
 
         Ok(Self { content: MmapContent { _file: file, pointer, length } })
@@ -86,26 +77,14 @@ impl Drop for MmapContent {
     fn drop(&mut self) {
         let alignment = self.pointer as usize % page_size();
 
-        assert_eq!(
-            unsafe {
-                libc::munmap(
-                    self.pointer.offset(-(alignment as isize)) as *mut _,
-                    self.length as libc::size_t,
-                )
-            },
-            0,
-            "Failed to unmap the memory map: {}",
-            Error::last_os_error()
-        );
+        unsafe { munmap(self.pointer.offset(-(alignment as isize)) as *mut _, self.length) }
+            .map_err(|errno| Error::from_raw_os_error(errno.raw_os_error()))
+            .unwrap();
     }
 }
 
 // SAFETY: `MmapContent.pointer`'s lifetime is tied to `MmapContent.file`.
 unsafe impl Send for MmapContent {}
-
-fn page_size() -> usize {
-    unsafe { libc::sysconf(libc::_SC_PAGESIZE) as _ }
-}
 
 #[cfg(test)]
 mod tests {

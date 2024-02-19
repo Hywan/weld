@@ -652,7 +652,7 @@ name = "weld-file"
 version = "0.1.0"
 dependencies = [
  "futures-lite",
- "libc",
+ "rustix",
 ]
 
 [[package]]
