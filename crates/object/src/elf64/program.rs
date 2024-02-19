@@ -164,7 +164,7 @@ impl Write for ProgramFlags {
 mod tests {
     use std::num::NonZeroU64;
 
-    use super::{super::DataType, *};
+    use super::*;
     use crate::{BigEndian, Endianness};
 
     #[test]
