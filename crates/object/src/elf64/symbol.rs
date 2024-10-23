@@ -144,7 +144,7 @@ pub enum SymbolBinding {
 }
 
 impl Read for SymbolBinding {
-    fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+    fn read<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,

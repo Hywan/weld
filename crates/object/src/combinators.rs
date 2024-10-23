@@ -9,7 +9,7 @@ use nom::{InputIter, ToUsize};
 use crate::{Input, Result};
 
 /// Like `take` but it “skips” the parsed value.
-pub fn skip<'a, C, E>(count: C) -> impl Fn(Input<'a>) -> Result<Input<'a>, E>
+pub fn skip<'a, C, E>(count: C) -> impl Fn(Input<'a>) -> Result<'a, Input<'a>, E>
 where
     C: ToUsize,
     E: ParseError<Input<'a>>,

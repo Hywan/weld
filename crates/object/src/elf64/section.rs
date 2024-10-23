@@ -213,7 +213,7 @@ pub enum SectionFlag {
 pub type SectionFlags = BitFlags<SectionFlag>;
 
 impl Read for SectionFlags {
-    fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+    fn read<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,
@@ -284,7 +284,7 @@ impl SectionIndex {
 }
 
 impl Read<u32> for SectionIndex {
-    fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+    fn read<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,
@@ -296,7 +296,7 @@ impl Read<u32> for SectionIndex {
 }
 
 impl Read<u16> for SectionIndex {
-    fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+    fn read<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,

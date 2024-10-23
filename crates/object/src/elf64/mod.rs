@@ -22,7 +22,7 @@ pub use symbol::*;
 pub struct Address(pub u64);
 
 impl Read<u64> for Address {
-    fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+    fn read<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,
@@ -34,7 +34,7 @@ impl Read<u64> for Address {
 }
 
 impl Read<u32> for Address {
-    fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+    fn read<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,
@@ -46,7 +46,7 @@ impl Read<u32> for Address {
 }
 
 impl Read<u64> for Option<Address> {
-    fn read<'a, N, E>(input: Input<'a>) -> Result<Self, E>
+    fn read<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,

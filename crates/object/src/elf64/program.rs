@@ -137,7 +137,7 @@ pub enum ProgramFlag {
 pub type ProgramFlags = BitFlags<ProgramFlag>;
 
 impl Read for ProgramFlags {
-    fn read<'a, N, E>(input: Input<'a>) -> Result<ProgramFlags, E>
+    fn read<'a, N, E>(input: Input<'a>) -> Result<'a, ProgramFlags, E>
     where
         N: Number,
         E: ParseError<Input<'a>>,

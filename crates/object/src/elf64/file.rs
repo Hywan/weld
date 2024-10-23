@@ -32,7 +32,7 @@ impl<'a> File<'a> {
     const MAGIC: &'static [u8; 4] = &[0x7f, b'E', b'L', b'F'];
     const ELF64: &'static [u8; 1] = &[0x2];
 
-    pub fn read<E>(input: Input<'a>) -> Result<Self, E>
+    pub fn read<E>(input: Input<'a>) -> Result<'a, Self, E>
     where
         E: ParseError<Input<'a>>,
     {

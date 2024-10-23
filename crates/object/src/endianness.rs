@@ -17,22 +17,22 @@ pub trait Number {
     fn endianness() -> Endianness;
 
     /// Read a `u8`.
-    fn read_u8<'a, E>(input: Input<'a>) -> Result<u8, E>
+    fn read_u8<'a, E>(input: Input<'a>) -> Result<'a, u8, E>
     where
         E: ParseError<Input<'a>>;
 
     /// Read a `u16`.
-    fn read_u16<'a, E>(input: Input<'a>) -> Result<u16, E>
+    fn read_u16<'a, E>(input: Input<'a>) -> Result<'a, u16, E>
     where
         E: ParseError<Input<'a>>;
 
     /// Read a `u32`.
-    fn read_u32<'a, E>(input: Input<'a>) -> Result<u32, E>
+    fn read_u32<'a, E>(input: Input<'a>) -> Result<'a, u32, E>
     where
         E: ParseError<Input<'a>>;
 
     /// Read a `u64`.
-    fn read_u64<'a, E>(input: Input<'a>) -> Result<u64, E>
+    fn read_u64<'a, E>(input: Input<'a>) -> Result<'a, u64, E>
     where
         E: ParseError<Input<'a>>;
 
@@ -58,28 +58,28 @@ impl Number for LittleEndian {
         Endianness::Little
     }
 
-    fn read_u8<'a, E>(input: Input<'a>) -> Result<u8, E>
+    fn read_u8<'a, E>(input: Input<'a>) -> Result<'a, u8, E>
     where
         E: ParseError<Input<'a>>,
     {
         le_u8(input)
     }
 
-    fn read_u16<'a, E>(input: Input<'a>) -> Result<u16, E>
+    fn read_u16<'a, E>(input: Input<'a>) -> Result<'a, u16, E>
     where
         E: ParseError<Input<'a>>,
     {
         le_u16(input)
     }
 
-    fn read_u32<'a, E>(input: Input<'a>) -> Result<u32, E>
+    fn read_u32<'a, E>(input: Input<'a>) -> Result<'a, u32, E>
     where
         E: ParseError<Input<'a>>,
     {
         le_u32(input)
     }
 
-    fn read_u64<'a, E>(input: Input<'a>) -> Result<u64, E>
+    fn read_u64<'a, E>(input: Input<'a>) -> Result<'a, u64, E>
     where
         E: ParseError<Input<'a>>,
     {
@@ -112,28 +112,28 @@ impl Number for BigEndian {
         Endianness::Big
     }
 
-    fn read_u8<'a, E>(input: Input<'a>) -> Result<u8, E>
+    fn read_u8<'a, E>(input: Input<'a>) -> Result<'a, u8, E>
     where
         E: ParseError<Input<'a>>,
     {
         be_u8(input)
     }
 
-    fn read_u16<'a, E>(input: Input<'a>) -> Result<u16, E>
+    fn read_u16<'a, E>(input: Input<'a>) -> Result<'a, u16, E>
     where
         E: ParseError<Input<'a>>,
     {
         be_u16(input)
     }
 
-    fn read_u32<'a, E>(input: Input<'a>) -> Result<u32, E>
+    fn read_u32<'a, E>(input: Input<'a>) -> Result<'a, u32, E>
     where
         E: ParseError<Input<'a>>,
     {
         be_u32(input)
     }
 
-    fn read_u64<'a, E>(input: Input<'a>) -> Result<u64, E>
+    fn read_u64<'a, E>(input: Input<'a>) -> Result<'a, u64, E>
     where
         E: ParseError<Input<'a>>,
     {
