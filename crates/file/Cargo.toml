@@ -14,3 +14,6 @@ rustix = { version = "0.38.31", features = ["mm", "param"] }
 
 [dev-dependencies]
 futures-lite = { workspace = true }
+
+[lints]
+workspace = true

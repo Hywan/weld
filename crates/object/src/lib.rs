@@ -1,15 +1,8 @@
 //! `weld-object` is able to read and write various object file binary formats,
 //! like `elf64`.
 
-#![deny(unused)]
-#![deny(warnings)]
-// #![deny(missing_docs)]
-#![deny(clippy::all)]
-#![deny(rustdoc::broken_intra_doc_links)]
-#![deny(rustdoc::private_intra_doc_links)]
-#![deny(rustdoc::missing_crate_level_docs)]
-#![deny(rustdoc::invalid_codeblock_attributes)]
-#![deny(rustdoc::invalid_rust_codeblocks)]
+// TODO: remove
+#![allow(missing_docs)]
 
 #[cfg(test)]
 #[macro_use]

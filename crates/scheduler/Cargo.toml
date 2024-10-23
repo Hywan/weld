@@ -12,3 +12,6 @@ futures-lite = { workspace = true }
 [dev-dependencies]
 async-io = { workspace = true }
 fastrand = "2.0.1"
+
+[lints]
+workspace = true

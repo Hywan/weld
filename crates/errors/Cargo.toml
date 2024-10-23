@@ -12,3 +12,6 @@ default = []
 
 # Enable the diagnostics API.
 diagnostics = []
+
+[lints]
+workspace = true

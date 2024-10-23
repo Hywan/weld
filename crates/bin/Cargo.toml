@@ -20,3 +20,6 @@ default = ["fancy-errors"]
 
 # Get fancy errors, with colors, links and all!
 fancy-errors = ["miette/fancy"]
+
+[lints]
+workspace = true

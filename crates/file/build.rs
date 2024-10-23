@@ -1,3 +1,6 @@
+//! Build file to select the file picker at compile-time if the `auto` feature
+//! is enabled.
+
 use std::env;
 
 fn main() {

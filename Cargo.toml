@@ -17,3 +17,18 @@ async-io = "2.3.0"
 futures-lite = "2.2.0"
 miette = "7.1.0"
 thiserror = "1.0"
+
+[workspace.lints.rust]
+unused = "deny"
+warnings = "deny"
+missing_docs = "deny"
+
+[workspace.lints.clippy]
+all = "deny"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+private_intra_doc_lins = "deny"
+missing_crate_level_docs = "deny"
+invalid_codeblock_attributes = "deny"
+invalid_rust_codeblocks = "deny"

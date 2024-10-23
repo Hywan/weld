@@ -1,7 +1,10 @@
+//! Procedural macros for `weld-object`.
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse, Attribute, Data, DataEnum, DeriveInput, Generics, Ident};
 
+/// The `ReadWrite` procedural macro.
 #[proc_macro_derive(ReadWrite)]
 pub fn derive_enum_read_write(input: TokenStream) -> TokenStream {
     let derive_input: DeriveInput = parse(input).unwrap();

@@ -21,3 +21,6 @@ debug-x86 = ["debug", "dep:iced-x86"]
 
 # Enable the `elf64` format.
 elf64 = []
+
+[lints]
+workspace = true

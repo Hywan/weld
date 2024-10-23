@@ -15,16 +15,6 @@
 //! example [`Diagnostics::E003`]. There is 2 ways to get the detailed
 //! diagnostics based on error code.
 
-#![deny(unused)]
-#![deny(warnings)]
-#![deny(missing_docs)]
-#![deny(clippy::all)]
-#![deny(rustdoc::broken_intra_doc_links)]
-#![deny(rustdoc::private_intra_doc_links)]
-#![deny(rustdoc::missing_crate_level_docs)]
-#![deny(rustdoc::invalid_codeblock_attributes)]
-#![deny(rustdoc::invalid_rust_codeblocks)]
-
 mod error_codes;
 
 pub use error_codes::Diagnostics;

@@ -19,3 +19,6 @@ default = ["elf64"]
 
 # Enable the `elf64` format.
 elf64 = ["weld-object/elf64"]
+
+[lints]
+workspace = true
