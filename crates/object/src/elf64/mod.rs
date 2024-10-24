@@ -1,3 +1,5 @@
+//! Elf64 support.
+
 use std::{fmt, io, num::NonZeroU64, ops::Add};
 
 use nom::Err::Error;
@@ -240,35 +242,20 @@ mod tests {
 
     #[test]
     fn test_me() {
-        let (_remaining, file) = File::read::<VerboseError<Input>>(EXIT_FILE).unwrap();
+        let (_remaining, mut file) = File::read::<VerboseError<Input>>(EXIT_FILE).unwrap();
+        file.fetch_section_names();
+
         dbg!(&file);
 
-        let string_section = file
-            .sections
-            .iter()
-            .find(|section| {
-                matches!(
-                    section,
-                    Section {
-                        r#type: SectionType::StringTable,
-                        name: Some(section_name), ..
-                    } if *section_name.as_ref() == ".strtab"
-                )
-            })
-            .expect("`.strtab` section not found");
+        let strings_section = file.strings_section();
 
         for section in
             file.sections.iter().filter(|section| section.r#type == SectionType::SymbolTable)
         {
             let symbols = section
                 .data
-                .symbols::<VerboseError<Input>>()
+                .symbols::<VerboseError<Input>>(strings_section)
                 .unwrap()
-                .map(|symbol| symbol.unwrap())
-                .map(|mut symbol| {
-                    symbol.name = string_section.data.string_at_offset(symbol.name_offset.into());
-                    symbol
-                })
                 .collect::<Vec<_>>();
 
             dbg!(&symbols);

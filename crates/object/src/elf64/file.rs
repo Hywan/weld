@@ -1,9 +1,7 @@
 use weld_object_macros::ReadWrite;
 
 use super::{Address, Program, Section, SectionIndex, SectionType};
-use crate::{
-    combinators::*, slice::SliceExt, BigEndian, Input, LittleEndian, Number, Read, Result,
-};
+use crate::{combinators::*, BigEndian, Input, LittleEndian, Number, Read, Result};
 
 /// Object file.
 #[derive(Debug)]
@@ -26,6 +24,8 @@ pub struct File<'a> {
     pub programs: Vec<Program<'a>>,
     /// Section headers.
     pub sections: Vec<Section<'a>>,
+    /// Section index of the section names.
+    pub section_index_for_section_names: SectionIndex,
 }
 
 impl<'a> File<'a> {
@@ -82,7 +82,7 @@ impl<'a> File<'a> {
                 ph_number,
                 sh_entry_size,
                 sh_number,
-                sh_index_for_section_names,
+                section_index_for_section_names,
             ),
         ) = tuple((
             Version::read::<N, _>,
@@ -129,27 +129,6 @@ impl<'a> File<'a> {
             }
         }
 
-        // Parse section names.
-        if let SectionIndex::Ok(index) = sh_index_for_section_names {
-            // Validate the `sh_index_for_section_names`.
-            if sections.is_empty()
-                || index >= sections.len()
-                || sections[index].r#type != SectionType::StringTable
-            {
-                return Err(Err::Error(E::from_error_kind(input, ErrorKind::AlphaNumeric)));
-            }
-
-            let (first_sections, section_names, last_sections) =
-                // SAFETY: `first_sections` and `last_sections` aren't stored and don't outlive `sections`.
-                unsafe { sections.split_around_at_mut(index) }
-                    // SAFETY: `unwrap`ing is safe because `sections` is not empty.
-                    .unwrap();
-
-            for section in first_sections.iter_mut().chain(last_sections.iter_mut()) {
-                section.name = section_names.data.string_at_offset(section.name_offset.into());
-            }
-        }
-
         let file = Self {
             endianness,
             version,
@@ -160,9 +139,57 @@ impl<'a> File<'a> {
             entry_point,
             programs,
             sections,
+            section_index_for_section_names,
         };
 
         Ok((&[], file))
+    }
+
+    /// Fetch all known section names.
+    ///
+    /// For each section, this method will find its name in the appropriate
+    /// section[^1], and will **copy** the bytes representing its name.
+    ///
+    /// [^1]: See [`Self::section_index_for_section_names`].
+    pub fn fetch_section_names(&mut self) {
+        if let SectionIndex::Ok(index) = self.section_index_for_section_names {
+            // Validate the `index`.
+            if self.sections.is_empty()
+                || index >= self.sections.len()
+                || self.sections[index].r#type != SectionType::StringTable
+            {
+                return;
+            }
+
+            let (left_sections, right_sections) = self.sections.split_at_mut(index);
+            let (section_names, right_sections) = right_sections
+                .split_first_mut()
+                .expect("The section for section names must be present");
+
+            for section in left_sections.iter_mut().chain(right_sections.iter_mut()) {
+                section.name = section_names
+                    .data
+                    .string_at_offset(section.name_offset.into())
+                    .map(|name| name.into_owned());
+            }
+        }
+    }
+
+    /// Get the section that holds strings.
+    ///
+    /// This section is named `.strtab` and is of type
+    /// [`SectionType::StringTable`].
+    pub fn strings_section(&'a self) -> Option<&'a Section<'a>> {
+        self.sections.iter().find(|section| {
+            matches!(
+                section,
+                Section {
+                    r#type: SectionType::StringTable,
+                    name: Some(section_name),
+                    ..
+                } if *section_name == ".strtab"
+            )
+        })
     }
 }
 

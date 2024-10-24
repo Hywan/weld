@@ -1,6 +1,6 @@
 use std::{borrow::Cow, io, num::NonZeroU64};
 
-use bstr::BStr;
+use bstr::BString;
 use enumflags2::{bitflags, BitFlags};
 use weld_object_macros::ReadWrite;
 
@@ -11,7 +11,7 @@ use crate::{combinators::*, Input, Number, Read, Result, Write};
 #[derive(Debug, PartialEq)]
 pub struct Section<'a> {
     /// Name of the section, if any.
-    pub name: Option<Cow<'a, BStr>>,
+    pub name: Option<BString>,
     /// An offset to a string in the `.shstrtab` section that represents the
     /// name of this section.
     pub(super) name_offset: Address,

@@ -3,7 +3,7 @@ use std::{borrow::Cow, marker::PhantomData, num::NonZeroU64, result::Result as S
 use bstr::BStr;
 use nom::Offset;
 
-use super::{Address, SectionIndex};
+use super::{Address, Section, SectionIndex};
 use crate::{
     combinators::*, BigEndian, Endianness, Input, LittleEndian, Number, Read, Result, Write,
 };
@@ -224,6 +224,7 @@ where
     input: Input<'a>,
     endianness: Endianness,
     entity_size: Option<NonZeroU64>,
+    strings_section: Option<&'a Section<'a>>,
     _phantom: PhantomData<E>,
 }
 
@@ -235,8 +236,9 @@ where
         input: Input<'a>,
         endianness: Endianness,
         entity_size: Option<NonZeroU64>,
+        strings_section: Option<&'a Section<'a>>,
     ) -> Self {
-        Self { input, endianness, entity_size, _phantom: PhantomData }
+        Self { input, endianness, entity_size, strings_section, _phantom: PhantomData }
     }
 }
 
@@ -257,7 +259,7 @@ where
         };
 
         match read {
-            Ok((next_input, symbol)) => {
+            Ok((next_input, mut symbol)) => {
                 // Ensure we have read the correct amount of bytes.
                 if let Some(entity_size) = self.entity_size {
                     let offset = self.input.offset(next_input);
@@ -275,6 +277,11 @@ where
                 }
 
                 self.input = next_input;
+
+                if let Some(strings_section) = &self.strings_section {
+                    symbol.name = strings_section.data.string_at_offset(symbol.name_offset.into());
+                }
+
                 Some(Ok(symbol))
             }
 
@@ -411,7 +418,7 @@ mod tests {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
         ];
 
-        let mut iterator = SymbolIterator::<()>::new(input, Endianness::Big, None);
+        let mut iterator = SymbolIterator::<()>::new(input, Endianness::Big, None, None);
 
         {
             let symbol = iterator.next();

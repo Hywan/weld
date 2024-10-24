@@ -13,7 +13,6 @@ mod combinators;
 pub mod elf64;
 mod endianness;
 mod read_write;
-pub mod slice;
 
 pub use endianness::*;
 pub use read_write::{Read, Write};
