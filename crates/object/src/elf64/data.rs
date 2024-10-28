@@ -131,7 +131,7 @@ impl<'a> fmt::Debug for Data<'a> {
                     formatter
                         .write_fmt(format_args!("{:?} Data(..), interpreted:", self.r#type))?;
 
-                    let mut decoder = Decoder::new(64, self.inner, DecoderOptions::NONE);
+                    let mut decoder = Decoder::new(64, &self.inner, DecoderOptions::NONE);
                     let mut x86_formatter = FastFormatter::new();
 
                     {
