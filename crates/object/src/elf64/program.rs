@@ -74,7 +74,7 @@ impl<'a> Program<'a> {
                 Cow::Borrowed(
                     &file[offset.into()..][..segment_size_in_file_image.try_into().unwrap()],
                 ),
-                DataType::Unspecified,
+                DataType::ProgramData,
                 N::endianness(),
                 None,
             ),
