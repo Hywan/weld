@@ -16,6 +16,7 @@ error! {
 
         #[code = E001]
         #[message = "I was not able to read the command-line propery"]
+        #[formatted_message("I was not able to read the command-line propery.\n{0}")]
         #[help = "See the command-line usage with `weld --help`."]
         CommandLine(String),
     }
