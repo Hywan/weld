@@ -21,10 +21,9 @@ fn default_output_file() -> PathBuf {
     PathBuf::from("a.out")
 }
 
+/// The `weld` command is an experimental linker: it combines several object
+/// files and libraries, resolves symbols, and produces an output file.
 #[derive(Debug, FromArgs)]
-/// The `weld` command is an experimental linker, i.e. just like `ld` for
-/// instance, it combines several object files and libraries, resolves
-/// references, and produces an output file.
 struct Weld {
     /// explain a particular error based on its code (of kind `E...`).
     #[argh(option)]
