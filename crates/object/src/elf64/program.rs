@@ -168,7 +168,7 @@ mod tests {
     use crate::{BigEndian, Endianness};
 
     #[test]
-    fn test_section() {
+    fn test_program() {
         #[rustfmt::skip]
         let input: &[u8] = &[
             // Type.
@@ -212,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn test_section_flag() {
+    fn test_program_flag() {
         macro_rules! test {
             ( $( $input:expr => $result:expr ),* $(,)? ) => {{
                 $(
