@@ -29,8 +29,8 @@ pub struct File<'a> {
 }
 
 impl<'a> File<'a> {
-    const MAGIC: &'static [u8; 4] = &[0x7f, b'E', b'L', b'F'];
-    const ELF64: &'static [u8; 1] = &[0x2];
+    pub const MAGIC: &'static [u8; 4] = &[0x7f, b'E', b'L', b'F'];
+    pub const ELF64: &'static [u8; 1] = &[0x2];
 
     pub fn read<E>(input: Input<'a>) -> Result<'a, Self, E>
     where
