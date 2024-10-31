@@ -203,6 +203,15 @@ pub enum Endianness {
     Big = 0x02,
 }
 
+impl Into<crate::Endianness> for Endianness {
+    fn into(self) -> crate::Endianness {
+        match self {
+            Endianness::Little => crate::Endianness::Little,
+            Endianness::Big => crate::Endianness::Big,
+        }
+    }
+}
+
 /// Elf version.
 #[derive(ReadWrite, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
