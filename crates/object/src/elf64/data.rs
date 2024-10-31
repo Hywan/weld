@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt, num::NonZeroU64};
+use std::{borrow::Cow, fmt, num::NonZeroU64, ops::Deref};
 
 use bstr::BStr;
 use nom::error::VerboseError;
@@ -47,9 +47,17 @@ pub struct Data<'a> {
     entity_size: Option<NonZeroU64>,
 }
 
+impl<'a> Deref for Data<'a> {
+    type Target = Cow<'a, [u8]>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 impl<'a> Data<'a> {
     /// Create a new `Data` type, wrapping some bytes.
-    pub(crate) fn new(
+    pub fn new(
         inner: Cow<'a, [u8]>,
         r#type: DataType,
         endianness: Endianness,
