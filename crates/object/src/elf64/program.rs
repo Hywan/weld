@@ -21,9 +21,9 @@ pub struct Program<'a> {
     /// physical address.
     pub physical_address: Option<Address>,
     /// Size in bytes of the segment in the file image. May be 0.
-    pub segment_size_in_file_image: Address,
+    pub segment_size_in_file_image: u64,
     /// Size in bytes of the segment in memory. May be 0.
-    pub segment_size_in_memory: Address,
+    pub segment_size_in_memory: u64,
     /// 0 and 1 specify no alignment. Otherwise should be a positive,
     /// integral power of 2, with `virtual_address` equating `offset` modulus
     /// `alignment`.
@@ -56,8 +56,8 @@ impl<'a> Program<'a> {
             <Address as Read<u64>>::read::<N, _>,
             <Address as Read<u64>>::read::<N, _>,
             <Option<Address> as Read<u64>>::read::<N, _>,
-            <Address as Read<u64>>::read::<N, _>,
-            <Address as Read<u64>>::read::<N, _>,
+            N::read_u64,
+            N::read_u64,
             Alignment::read::<N, _>,
         ))(input)?;
 
@@ -95,8 +95,8 @@ impl<'a> Write for Program<'a> {
         <Address as Write<u64>>::write::<N, _>(&self.offset, buffer)?;
         <Address as Write<u64>>::write::<N, _>(&self.virtual_address, buffer)?;
         <Option<Address> as Write<u64>>::write::<N, _>(&self.physical_address, buffer)?;
-        <Address as Write<u64>>::write::<N, _>(&self.segment_size_in_file_image, buffer)?;
-        <Address as Write<u64>>::write::<N, _>(&self.segment_size_in_memory, buffer)?;
+        buffer.write_all(&N::write_u64(self.segment_size_in_file_image))?;
+        buffer.write_all(&N::write_u64(self.segment_size_in_memory))?;
         self.alignment.write::<N, _>(buffer)
     }
 }
@@ -196,11 +196,11 @@ mod tests {
             offset: Address(0),
             virtual_address: Address(7),
             physical_address: None,
-            segment_size_in_file_image: Address(5),
-            segment_size_in_memory: Address(0),
+            segment_size_in_file_image: 5,
+            segment_size_in_memory: 0,
             alignment: Alignment(Some(NonZeroU64::new(512).unwrap())),
             segment_flags: ProgramFlag::Read | ProgramFlag::Execute,
-            data: Data::new(Cow::Borrowed(&file[..]), DataType::Unspecified, Endianness::Big, None),
+            data: Data::new(Cow::Borrowed(&file[..]), DataType::ProgramData, Endianness::Big, None),
         };
 
         let mut buffer = Vec::new();
