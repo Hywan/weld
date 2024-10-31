@@ -1,6 +1,6 @@
 //! Elf64 support.
 
-use std::{fmt, io, num::NonZeroU64, ops::Add};
+use std::{fmt, io, num::NonZeroU64, ops::Add, result::Result as StdResult};
 
 use nom::Err::Error;
 
@@ -138,6 +138,25 @@ impl Add for Address {
 #[repr(transparent)]
 pub struct Alignment(pub Option<NonZeroU64>);
 
+impl Alignment {
+    /// Create a `Self`.
+    ///
+    /// It will return `Ok(Self)` if `alignment` is a non-zero power of two,
+    /// otherwise it will return `Err(alignment)`.
+    pub fn new(alignment: u64) -> StdResult<Self, u64> {
+        Ok(Self(if alignment != 0 {
+            if !alignment.is_power_of_two() {
+                return Err(alignment);
+            }
+
+            // SAFETY: We just checked that there's no `0`.
+            Some(unsafe { NonZeroU64::new_unchecked(alignment) })
+        } else {
+            None
+        }))
+    }
+}
+
 impl Read for Alignment {
     fn read<'a, N, E>(input: Input<'a>) -> Result<'a, Self, E>
     where
@@ -146,18 +165,10 @@ impl Read for Alignment {
     {
         let (next_input, alignment) = N::read_u64(input)?;
 
-        let alignment = if alignment != 0 {
-            if !alignment.is_power_of_two() {
-                return Err(Error(E::from_error_kind(input, ErrorKind::Digit)));
-            }
-
-            // SAFETY: We just checked that there's no `0`.
-            Some(unsafe { NonZeroU64::new_unchecked(alignment) })
-        } else {
-            None
-        };
-
-        Ok((next_input, Self(alignment)))
+        Ok((
+            next_input,
+            Self::new(alignment).map_err(|_| Error(E::from_error_kind(input, ErrorKind::Digit)))?,
+        ))
     }
 }
 
