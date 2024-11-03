@@ -121,6 +121,22 @@ pub enum ProgramType {
     ProgramHeader = 0x06,
     /// Thread-Local Storage template.
     ThreadLocalStorage = 0x07,
+    /// Low environment-specific use.
+    LowEnvironmentSpecific = 0x6000_0000,
+    /// GCC `.eh_frame_hdr` segment.
+    GnuEhFrame = 0x6474_e550,
+    /// Stack executability.
+    GnuStack = 0x6474_e551,
+    /// Read-only after relocation.
+    GnuRelocationReadOnly = 0x6474_e552,
+    /// Segment containing `.note.gnu.property` section.
+    GnuProperty = 0x6474_e553,
+    /// High environment-specific use.
+    HighEnvironmentSpecific = 0x6fff_ffff,
+    /// Low processor-specific use.
+    LowProcessorSpecific = 0x7000_0000,
+    /// Low processor-specific use.
+    HighProcessorSpecific = 0x7fff_ffff,
 }
 
 /// Program flag.
