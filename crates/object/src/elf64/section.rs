@@ -41,6 +41,9 @@ pub struct Section<'a> {
 }
 
 impl<'a> Section<'a> {
+    /// Size of `Self` in the Elf format.
+    pub const SIZE: u16 = 64;
+
     pub fn read<N, E>(input: Input<'a>, file: Input<'a>) -> Result<'a, Self, E>
     where
         N: Number,

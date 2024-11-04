@@ -29,8 +29,14 @@ pub struct File<'a> {
 }
 
 impl<'a> File<'a> {
+    /// Magic number for an Elf file.
     pub const MAGIC: &'static [u8; 4] = &[0x7f, b'E', b'L', b'F'];
+
+    /// Elf version/class.
     pub const ELF64: &'static [u8; 1] = &[0x2];
+
+    /// Size of `Self` in the Elf format.
+    pub const SIZE: u16 = 64;
 
     pub fn read<E>(input: Input<'a>) -> Result<'a, Self, E>
     where
