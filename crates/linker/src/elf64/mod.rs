@@ -14,7 +14,7 @@ use weld_file::{FileReader, Picker as FilePicker};
 use weld_object::{
     elf64::{
         Address, Alignment, Data, DataType, Endianness, File, FileType, Machine, OsAbi, Program,
-        ProgramFlag, ProgramFlags, ProgramType, SectionFlag, SectionFlags, SectionIndex,
+        ProgramFlag, ProgramFlags, ProgramType, Section, SectionFlag, SectionFlags, SectionIndex,
         SectionType, Version,
     },
     BigEndian, LittleEndian, Number, Write,
@@ -68,6 +68,7 @@ pub(crate) fn link(configuration: Configuration) -> Result<(), Error> {
 
     for input_file_name in configuration.input_files {
         let sender = sender.clone();
+        let path_to_output_file = configuration.output_file.clone();
 
         thread_pool
             .execute(async move {
@@ -133,6 +134,15 @@ pub(crate) fn link(configuration: Configuration) -> Result<(), Error> {
 
                     let (rest, test) = weld_object::elf64::File::read::<()>(&final_bytes).unwrap();
                     dbg!(&test);
+
+                    let mut output_file = std::fs::File::options()
+                        .create(true)
+                        .write(true)
+                        .truncate(true)
+                        .open(path_to_output_file)
+                        .unwrap();
+
+                    output_file.write_all(&final_bytes).unwrap();
 
                     Ok(())
                 };
@@ -209,40 +219,48 @@ impl FileBuilder {
     fn build_with_endianness<N: Number>(self) -> io::Result<Vec<u8>> {
         let mut buffer = Vec::with_capacity(256);
 
-        // Magic
+        let file_load_va: u64 = 0x1000;
+
+        // Magic.
         buffer.write_all(File::MAGIC)?;
-        // Elf64
+        // Elf64.
         buffer.write_all(File::ELF64)?;
-        // Endianness
+        // Endianness.
         self.endianness.write::<LittleEndian, _>(&mut buffer)?;
-        // Version
+        // Version.
         self.version.write::<N, _>(&mut buffer)?;
-        // OS ABI
+        // OS ABI.
         self.os_abi.write::<N, _>(&mut buffer)?;
-        // Padding (skip)
+        // Padding (skip).
         buffer.resize(buffer.len() + 8, 0);
         // File type.
         FileType::ExecutableFile.write::<N, _>(&mut buffer)?;
         // Machine.
         self.machine.write::<N, _>(&mut buffer)?;
-        // Version bis (skip)
+        // Version bis (skip).
         buffer.resize(buffer.len() + 4, 0);
-        // Entry point
-        <_ as Write<u64>>::write::<N, _>(&Some(Address(0x40_0000)), &mut buffer)?;
+        // Entry point.
+        <_ as Write<u64>>::write::<N, _>(&Some(Address(file_load_va)), &mut buffer)?;
         // Program headers offset.
-        <_ as Write<u64>>::write::<N, _>(&Address(64), &mut buffer)?;
+        <_ as Write<u64>>::write::<N, _>(
+            &Address(
+                // Right after the file header.
+                File::SIZE.into(),
+            ),
+            &mut buffer,
+        )?;
         // Section headers offset.
         <_ as Write<u64>>::write::<N, _>(&Address(0), &mut buffer)?;
         // Processor flags.
         buffer.write_all(&N::write_u32(self.processor_flags))?;
         // File header size.
-        buffer.write_all(&N::write_u16(64))?;
+        buffer.write_all(&N::write_u16(File::SIZE))?;
         // Program header size.
-        buffer.write_all(&N::write_u16(56))?;
+        buffer.write_all(&N::write_u16(Program::SIZE))?;
         // Number of program headers.
         buffer.write_all(&N::write_u16(1))?;
         // Section header size.
-        buffer.write_all(&N::write_u16(64))?;
+        buffer.write_all(&N::write_u16(Section::SIZE))?;
         // Number of section headers.
         buffer.write_all(&N::write_u16(0))?;
         // Section index of the section names.
@@ -251,14 +269,16 @@ impl FileBuilder {
         let number_of_segments = self.segments.len();
 
         let program_headers = self.segments.into_iter().map(|segment| {
+            let segment_size = segment.data.len() as u64;
+
             Program {
                 r#type: ProgramType::Load,
                 segment_flags: segment.flags,
-                offset: Address(64 + 56),
-                virtual_address: Address(0x40_0000),
-                physical_address: Some(Address(0x40_0000)),
-                segment_size_in_file_image: segment.data.len().try_into().unwrap(), /* TODO: create a `Size` type */
-                segment_size_in_memory: segment.data.len().try_into().unwrap(),
+                offset: Address(File::SIZE as u64 + Program::SIZE as u64),
+                virtual_address: Address(file_load_va),
+                physical_address: Some(Address(file_load_va)),
+                segment_size_in_file_image: segment_size,
+                segment_size_in_memory: segment_size,
                 alignment: Alignment::new(0x1000).unwrap(),
                 data: Data::new(
                     Cow::Owned(segment.data),
@@ -266,7 +286,8 @@ impl FileBuilder {
                     self.endianness.into(),
                     None,
                 ),
-        }});
+            }
+        });
 
         let mut segments = Vec::with_capacity(number_of_segments);
 
