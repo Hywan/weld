@@ -240,7 +240,10 @@ impl FileBuilder {
         // Version bis (skip).
         buffer.resize(buffer.len() + 4, 0);
         // Entry point.
-        <_ as Write<u64>>::write::<N, _>(&Some(Address(file_load_va)), &mut buffer)?;
+        <_ as Write<u64>>::write::<N, _>(
+            &Some(Address(File::SIZE as u64 + Program::SIZE as u64 + file_load_va)),
+            &mut buffer,
+        )?;
         // Program headers offset.
         <_ as Write<u64>>::write::<N, _>(
             &Address(
@@ -269,12 +272,12 @@ impl FileBuilder {
         let number_of_segments = self.segments.len();
 
         let program_headers = self.segments.into_iter().map(|segment| {
-            let segment_size = segment.data.len() as u64;
+            let segment_size = File::SIZE as u64 + Program::SIZE as u64 + segment.data.len() as u64;
 
             Program {
                 r#type: ProgramType::Load,
                 segment_flags: segment.flags,
-                offset: Address(File::SIZE as u64 + Program::SIZE as u64),
+                offset: Address(0),
                 virtual_address: Address(file_load_va),
                 physical_address: Some(Address(file_load_va)),
                 segment_size_in_file_image: segment_size,
