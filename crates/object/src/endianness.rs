@@ -1,4 +1,7 @@
-use nom::number::complete::{be_u16, be_u32, be_u64, be_u8, le_u16, le_u32, le_u64, le_u8};
+use nom::{
+    number::{be_u16, be_u32, be_u64, be_u8, le_u16, le_u32, le_u64, le_u8},
+    Parser,
+};
 
 use crate::{combinators::*, Input, Result};
 
@@ -62,28 +65,28 @@ impl Number for LittleEndian {
     where
         E: ParseError<Input<'a>>,
     {
-        le_u8(input)
+        le_u8().parse(input)
     }
 
     fn read_u16<'a, E>(input: Input<'a>) -> Result<'a, u16, E>
     where
         E: ParseError<Input<'a>>,
     {
-        le_u16(input)
+        le_u16().parse(input)
     }
 
     fn read_u32<'a, E>(input: Input<'a>) -> Result<'a, u32, E>
     where
         E: ParseError<Input<'a>>,
     {
-        le_u32(input)
+        le_u32().parse(input)
     }
 
     fn read_u64<'a, E>(input: Input<'a>) -> Result<'a, u64, E>
     where
         E: ParseError<Input<'a>>,
     {
-        le_u64(input)
+        le_u64().parse(input)
     }
 
     fn write_u8(n: u8) -> [u8; 1] {
@@ -116,28 +119,28 @@ impl Number for BigEndian {
     where
         E: ParseError<Input<'a>>,
     {
-        be_u8(input)
+        be_u8().parse(input)
     }
 
     fn read_u16<'a, E>(input: Input<'a>) -> Result<'a, u16, E>
     where
         E: ParseError<Input<'a>>,
     {
-        be_u16(input)
+        be_u16().parse(input)
     }
 
     fn read_u32<'a, E>(input: Input<'a>) -> Result<'a, u32, E>
     where
         E: ParseError<Input<'a>>,
     {
-        be_u32(input)
+        be_u32().parse(input)
     }
 
     fn read_u64<'a, E>(input: Input<'a>) -> Result<'a, u64, E>
     where
         E: ParseError<Input<'a>>,
     {
-        be_u64(input)
+        be_u64().parse(input)
     }
 
     fn write_u8(n: u8) -> [u8; 1] {

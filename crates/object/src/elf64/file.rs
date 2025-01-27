@@ -1,3 +1,4 @@
+use nom::Parser;
 use weld_object_macros::ReadWrite;
 
 use super::{Address, Program, Section, SectionIndex, SectionType};
@@ -39,9 +40,8 @@ impl<'a> File<'a> {
         let file = input;
 
         let (input, (_magic, _class, endianness)) =
-            tuple((tag(Self::MAGIC), tag(Self::ELF64), Endianness::read::<LittleEndian, _>))(
-                input,
-            )?;
+            (tag(&Self::MAGIC[..]), tag(&Self::ELF64[..]), Endianness::read::<LittleEndian, _>)
+                .parse(input)?;
 
         match endianness {
             Endianness::Big => Self::read_with_endianness::<BigEndian, _>(file, input, endianness),
@@ -84,7 +84,7 @@ impl<'a> File<'a> {
                 sh_number,
                 section_index_for_section_names,
             ),
-        ) = tuple((
+        ) = (
             Version::read::<N, _>,
             OsAbi::read::<N, _>,
             skip(8usize),
@@ -101,7 +101,8 @@ impl<'a> File<'a> {
             N::read_u16,
             N::read_u16,
             <SectionIndex as Read<u16>>::read::<N, _>,
-        ))(input)?;
+        )
+            .parse(input)?;
 
         let mut programs = Vec::with_capacity(ph_number as usize);
 

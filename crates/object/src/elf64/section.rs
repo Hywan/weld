@@ -2,6 +2,7 @@ use std::{borrow::Cow, io, num::NonZeroU64};
 
 use bstr::BString;
 use enumflags2::{bitflags, BitFlags};
+use nom::Parser;
 use weld_object_macros::ReadWrite;
 
 use super::{Address, Alignment, Data};
@@ -60,7 +61,7 @@ impl<'a> Section<'a> {
                 alignment,
                 entity_size,
             ),
-        ) = tuple((
+        ) = (
             <Address as Read<u32>>::read::<N, _>,
             SectionType::read::<N, _>,
             SectionFlags::read::<N, _>,
@@ -71,7 +72,8 @@ impl<'a> Section<'a> {
             N::read_u32,
             Alignment::read::<N, _>,
             N::read_u64,
-        ))(input)?;
+        )
+            .parse(input)?;
 
         let entity_size = if entity_size != 0 {
             // SAFETY: We just checked `entity_size` is not 0.

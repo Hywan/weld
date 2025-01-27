@@ -173,7 +173,6 @@ impl Write for Alignment {
 
 #[cfg(test)]
 mod tests {
-    use nom::error::VerboseError;
 
     use super::*;
     use crate::BigEndian;
@@ -242,7 +241,7 @@ mod tests {
 
     #[test]
     fn test_me() {
-        let (_remaining, mut file) = File::read::<VerboseError<Input>>(EXIT_FILE).unwrap();
+        let (_remaining, mut file) = File::read::<()>(EXIT_FILE).unwrap();
         file.fetch_section_names();
 
         dbg!(&file);
@@ -252,11 +251,7 @@ mod tests {
         for section in
             file.sections.iter().filter(|section| section.r#type == SectionType::SymbolTable)
         {
-            let symbols = section
-                .data
-                .symbols::<VerboseError<Input>>(strings_section)
-                .unwrap()
-                .collect::<Vec<_>>();
+            let symbols = section.data.symbols::<()>(strings_section).unwrap().collect::<Vec<_>>();
 
             dbg!(&symbols);
         }

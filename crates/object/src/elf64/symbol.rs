@@ -1,7 +1,7 @@
 use std::{borrow::Cow, marker::PhantomData, num::NonZeroU64, result::Result as StdResult};
 
 use bstr::BStr;
-use nom::Offset;
+use nom::{Offset, Parser};
 
 use super::{Address, Section, SectionIndex};
 use crate::{
@@ -56,15 +56,16 @@ impl<'a> Read for Symbol<'a> {
                 value,
                 size,
             ),
-        ) = tuple((
+        ) = (
             <Address as Read<u32>>::read::<N, _>,
             SymbolBinding::read::<N, _>,
             SymbolType::read::<N, _>,
-            tag(&[0x00]),
+            tag(&[0x00][..]),
             <SectionIndex as Read<u16>>::read::<N, _>,
             <Address as Read<u64>>::read::<N, _>,
             N::read_u64,
-        ))(input)?;
+        )
+            .parse(input)?;
 
         Ok((
             input,

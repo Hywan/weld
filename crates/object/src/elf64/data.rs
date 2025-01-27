@@ -1,7 +1,6 @@
 use std::{borrow::Cow, fmt, num::NonZeroU64};
 
 use bstr::BStr;
-use nom::error::VerboseError;
 
 use super::{Section, SectionType, Symbol, SymbolIterator};
 use crate::{combinators::*, Endianness, Input};
@@ -119,7 +118,7 @@ impl<'a> fmt::Debug for Data<'a> {
             DataType::SymbolTable => formatter.write_fmt(format_args!(
                 "{:?} Data(..), interpreted: {:#?}",
                 self.r#type,
-                self.symbols::<VerboseError<Input>>(None).unwrap().collect::<Vec<_>>()
+                self.symbols::<(Input, ErrorKind)>(None).unwrap().collect::<Vec<_>>()
             )),
 
             #[cfg(feature = "debug")]

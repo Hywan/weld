@@ -1,6 +1,7 @@
 use std::{borrow::Cow, io};
 
 use enumflags2::{bitflags, BitFlags};
+use nom::Parser;
 use weld_object_macros::ReadWrite;
 
 use super::{Address, Alignment, Data, DataType};
@@ -50,7 +51,7 @@ impl<'a> Program<'a> {
                 segment_size_in_memory,
                 alignment,
             ),
-        ) = tuple((
+        ) = (
             ProgramType::read::<N, _>,
             ProgramFlags::read::<N, _>,
             <Address as Read<u64>>::read::<N, _>,
@@ -59,7 +60,8 @@ impl<'a> Program<'a> {
             <Address as Read<u64>>::read::<N, _>,
             <Address as Read<u64>>::read::<N, _>,
             Alignment::read::<N, _>,
-        ))(input)?;
+        )
+            .parse(input)?;
 
         let program = Self {
             r#type,
@@ -200,7 +202,7 @@ mod tests {
             segment_size_in_memory: Address(0),
             alignment: Alignment(Some(NonZeroU64::new(512).unwrap())),
             segment_flags: ProgramFlag::Read | ProgramFlag::Execute,
-            data: Data::new(Cow::Borrowed(&file[..]), DataType::Unspecified, Endianness::Big, None),
+            data: Data::new(Cow::Borrowed(&file[..]), DataType::ProgramData, Endianness::Big, None),
         };
 
         let mut buffer = Vec::new();

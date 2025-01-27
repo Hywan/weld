@@ -1,10 +1,9 @@
 pub use nom::{
     bytes::complete::tag,
     error::{ErrorKind, ParseError},
-    sequence::tuple,
     Err,
 };
-use nom::{InputIter, ToUsize};
+use nom::{Input as _, ToUsize};
 
 use crate::{Input, Result};
 
